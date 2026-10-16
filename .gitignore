@@ -1,0 +1,16 @@
+# Build output
+build/
+build-*/
+cmake-build-*/
+out/
+
+# Runtime artifacts
+screenshots/
+*.log
+
+# Editor / OS files
+.vscode/
+.idea/
+*.swp
+.DS_Store
+compile_commands.json
