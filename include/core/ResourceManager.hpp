@@ -31,7 +31,29 @@ enum class TextureId {
     GemCyan,
     GemEmerald,
     GemGold,
-    ArenaFloor
+    ArenaFloor,
+    // Milestone 6 additions:
+    TileGrass,
+    TileDirt,
+    TileStone,
+    TileWater,
+    TileSand,
+    TileBridgeH,
+    TileBridgeV,
+    DecoTreeOak,
+    DecoTreePine,
+    DecoRock,
+    DecoRockLarge,
+    DecoBush,
+    DecoLog,
+    DecoRuins,
+    DecoTent,
+    DecoCampfire,
+    PlayerDown,
+    PlayerUp,
+    PlayerLeft,
+    PlayerRight,
+    ProjectilePlayer
 };
 
 // Lightweight sprite sheet descriptor for grid-based multi-frame animation.

@@ -3,6 +3,8 @@
 #include <SFML/Graphics/Rect.hpp>
 #include <SFML/Graphics/RenderTarget.hpp>
 #include <SFML/System/Vector2.hpp>
+#include <memory>
+#include <utility>
 
 namespace ss {
 
@@ -23,18 +25,24 @@ public:
     // Checks if a circular entity is completely or partially within the arena.
     bool contains(sf::Vector2f position, float radius = 0.f) const;
 
-    // Procedural rendering using SFML geometry:
-    // - Deep void backdrop outside the arena walls
-    // - Flagstone floor with subtle checkered tone variation
-    // - Concentric arcane sanctuary runes in the center
-    // - Fortified stone boundary walls and glowing runic trim
-    // - Corner bastions with arcane energy cores
+    // Optional TileMap integration for wide explorable worlds
+    void setTileMap(std::shared_ptr<class TileMap> tileMap) { m_tileMap = std::move(tileMap); }
+    const class TileMap* tileMap() const { return m_tileMap.get(); }
+    class TileMap* tileMap() { return m_tileMap.get(); }
+    bool hasTileMap() const { return m_tileMap != nullptr; }
+
+    // Unified collision queries (delegates to TileMap if attached, or uses bounds)
+    bool isTraversable(sf::Vector2f position, float radius) const;
+    sf::Vector2f resolveCollision(sf::Vector2f oldPos, sf::Vector2f newPos, float radius) const;
+
+    // Procedural rendering using SFML geometry or attached TileMap:
     void draw(sf::RenderTarget& target, const class ResourceManager* resources = nullptr) const;
 
 private:
     sf::Vector2f m_center;
     sf::Vector2f m_size;
     sf::FloatRect m_bounds;
+    std::shared_ptr<class TileMap> m_tileMap;
 };
 
 } // namespace ss

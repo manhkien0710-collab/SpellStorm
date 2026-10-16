@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/Arena.hpp"
+#include "core/Camera.hpp"
 #include "core/Random.hpp"
 #include "entities/Enemy.hpp"
 #include "entities/Player.hpp"
@@ -20,6 +21,7 @@
 #include <SFML/Graphics/RenderTarget.hpp>
 #include <SFML/Window/Event.hpp>
 #include <memory>
+#include <optional>
 #include <vector>
 
 namespace ss {
@@ -51,16 +53,22 @@ public:
     // When Game Over is active: gameplay remains completely frozen.
     // When Level-Up is active: gameplay remains completely frozen.
     // When Playing: moves entities, advances AI/spawner, checks collisions, updates timers.
-    void update(float dt, sf::Vector2f mousePos, bool autoplay = false);
+    void update(float dt, sf::Vector2f worldMousePos, bool autoplay = false,
+                std::optional<sf::Vector2f> uiMousePos = std::nullopt);
 
     // Continuous attack handling (when mouse button held down while playing)
     void handleContinuousInput(sf::Vector2f mousePos);
 
     // Routes window events to appropriate subsystems (Game Over modal, Level-Up modal, or gameplay)
-    SessionEventResult handleEvent(const sf::Event& event, sf::Vector2f mousePos);
+    SessionEventResult handleEvent(const sf::Event& event, sf::Vector2f worldMousePos,
+                                   std::optional<sf::Vector2f> uiMousePos = std::nullopt);
 
     // Casts currently selected spell towards target world position
     void castSpell(sf::Vector2f targetPos);
+
+    // Camera following the player across the wide world
+    const class Camera& camera() const { return m_camera; }
+    class Camera& camera() { return m_camera; }
 
     // Renders arena, entities, projectiles, effects, HUD, and overlays
     void render(sf::RenderTarget& target, const sf::Font* font = nullptr,
@@ -135,6 +143,7 @@ private:
     Random m_rng;
 
     Player m_player;
+    Camera m_camera;
     EffectSystem m_effects;
     CombatSystem m_combatSystem;
     ExperienceSystem m_expSystem;

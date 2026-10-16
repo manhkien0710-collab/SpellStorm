@@ -1,8 +1,10 @@
 #include "core/Arena.hpp"
 
+#include "core/Camera.hpp"
 #include "core/DrawUtils.hpp"
 #include "core/MathUtils.hpp"
 #include "core/ResourceManager.hpp"
+#include "environment/TileMap.hpp"
 
 #include <SFML/Graphics/RectangleShape.hpp>
 #include <SFML/Graphics/Sprite.hpp>
@@ -40,8 +42,32 @@ bool Arena::contains(sf::Vector2f position, float radius) const
            (position.y + radius <= m_bounds.top + m_bounds.height);
 }
 
+bool Arena::isTraversable(sf::Vector2f position, float radius) const
+{
+    if (m_tileMap) {
+        return m_tileMap->isTraversable(position, radius);
+    }
+    return contains(position, radius);
+}
+
+sf::Vector2f Arena::resolveCollision(sf::Vector2f oldPos, sf::Vector2f newPos, float radius) const
+{
+    if (m_tileMap) {
+        return m_tileMap->resolveCollision(oldPos, newPos, radius);
+    }
+    return clampPosition(newPos, radius);
+}
+
 void Arena::draw(sf::RenderTarget& target, const ResourceManager* resources) const
 {
+    if (m_tileMap) {
+        Camera cam(target.getView().getSize(), m_bounds);
+        cam.setCenter(target.getView().getCenter());
+        m_tileMap->drawTerrain(target, resources, cam);
+        m_tileMap->drawDecorations(target, resources, cam);
+        return;
+    }
+
     // 1. Arena Floor Base
     sf::RectangleShape floorShape(m_size);
     floorShape.setPosition(m_bounds.left, m_bounds.top);

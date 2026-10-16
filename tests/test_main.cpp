@@ -9,6 +9,7 @@ void runProgressionTests();
 void runGameOverTests();
 void runShootingModeTests();
 void runAssetPipelineTests();
+void runWorldCameraTests();
 
 int main()
 {
@@ -22,6 +23,7 @@ int main()
     runGameOverTests();
     runShootingModeTests();
     runAssetPipelineTests();
+    runWorldCameraTests();
 
     std::cout << "Tests Passed: " << ss::test::g_testsPassed << std::endl;
     std::cout << "Tests Failed: " << ss::test::g_testsFailed << std::endl;

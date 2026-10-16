@@ -57,7 +57,8 @@ if(SPELLSTORM_BUILD_TESTS)
         tests/test_progression.cpp
         tests/test_game_over.cpp
         tests/test_shooting_mode.cpp
-        tests/test_assets.cpp)
+        tests/test_assets.cpp
+        tests/test_world_camera.cpp)
     target_link_libraries(spellstorm_tests PRIVATE spellstorm_core)
     add_custom_command(TARGET spellstorm_tests POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory

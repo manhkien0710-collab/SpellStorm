@@ -17,6 +17,8 @@
 #include "spells/SpellDefinition.hpp"
 #include "spells/SpellRegistry.hpp"
 
+#include "environment/TileMap.hpp"
+
 #include <SFML/Graphics.hpp>
 #include <iostream>
 #include <memory>
@@ -31,6 +33,9 @@ int main(int argc, char* argv[])
     bool testRestartFlow = false;
     bool testAutoShot = false;
     bool testShowcase = false;
+    bool testBridge = false;
+    bool testRuins = false;
+    bool testCampsite = false;
 
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
@@ -46,6 +51,12 @@ int main(int argc, char* argv[])
             testAutoShot = true;
         } else if (arg == "--test-showcase") {
             testShowcase = true;
+        } else if (arg == "--test-bridge") {
+            testBridge = true;
+        } else if (arg == "--test-ruins") {
+            testRuins = true;
+        } else if (arg == "--test-campsite") {
+            testCampsite = true;
         } else if (arg == "--test-restart-flow") {
             testRestartFlow = true;
             options.autoplay = true;
@@ -153,7 +164,11 @@ int main(int argc, char* argv[])
     sf::RenderWindow window(sf::VideoMode(1280, 720), "Spell Storm - 2D Magic Arena (OOP Assignment)");
     window.setFramerateLimit(60);
 
-    ss::Arena arena({640.f, 360.f}, {1180.f, 630.f});
+    // Initialize 128x128 TileMap (4096 x 4096 world units)
+    auto tileMap = std::make_shared<ss::TileMap>(options.seed != 0 ? options.seed : 42);
+    ss::Arena arena(tileMap->center(), tileMap->worldSize());
+    arena.setTileMap(tileMap);
+
     ss::GameSession session(arena, registry, options.seed != 0 ? options.seed : 42, &resources);
 
     if (testLevelUp) {
@@ -169,14 +184,30 @@ int main(int argc, char* argv[])
         session.gameOverOverlay().open(84.f, 26, 3);
     } else if (testAutoShot) {
         session.toggleShootingMode();
+    } else if (testBridge) {
+        // Position player and camera on the river bridge
+        const sf::Vector2f bridgePos(1360.f, 2064.f);
+        session.player().setPosition(bridgePos);
+        session.camera().setCenter(bridgePos);
+    } else if (testRuins) {
+        // Position player and camera at the ancient stone ruins sanctuary
+        const sf::Vector2f ruinsPos(2832.f, 1136.f);
+        session.player().setPosition(ruinsPos);
+        session.camera().setCenter(ruinsPos);
+    } else if (testCampsite) {
+        // Position player and camera at the wilderness campsite (near campfire)
+        const sf::Vector2f campPos(3000.f, 2830.f);
+        session.player().setPosition(campPos);
+        session.camera().setCenter(campPos);
     } else if (testShowcase) {
-        session.enemies().push_back(std::make_unique<ss::MeleeEnemy>(sf::Vector2f(520.f, 330.f)));
-        session.enemies().push_back(std::make_unique<ss::RangedEnemy>(sf::Vector2f(780.f, 290.f)));
-        session.enemies().push_back(std::make_unique<ss::TankEnemy>(sf::Vector2f(720.f, 430.f)));
-        session.experienceSystem().spawnPickup(sf::Vector2f(580.f, 410.f), 10); // Cyan gem
-        session.experienceSystem().spawnPickup(sf::Vector2f(640.f, 440.f), 25); // Emerald gem
-        session.experienceSystem().spawnPickup(sf::Vector2f(700.f, 410.f), 50); // Gold gem
-        session.castSpell(sf::Vector2f(720.f, 430.f));
+        const sf::Vector2f playerPos = session.player().position();
+        session.enemies().push_back(std::make_unique<ss::MeleeEnemy>(playerPos + sf::Vector2f(-120.f, -40.f)));
+        session.enemies().push_back(std::make_unique<ss::RangedEnemy>(playerPos + sf::Vector2f(150.f, -70.f)));
+        session.enemies().push_back(std::make_unique<ss::TankEnemy>(playerPos + sf::Vector2f(100.f, 90.f)));
+        session.experienceSystem().spawnPickup(playerPos + sf::Vector2f(-110.f, 80.f), 10); // Cyan gem
+        session.experienceSystem().spawnPickup(playerPos + sf::Vector2f(0.f, 130.f), 25);  // Emerald gem
+        session.experienceSystem().spawnPickup(playerPos + sf::Vector2f(110.f, 80.f), 50);  // Gold gem
+        session.castSpell(playerPos + sf::Vector2f(100.f, 90.f));
     }
 
     sf::Clock clock;
@@ -205,14 +236,17 @@ int main(int argc, char* argv[])
         }
 
         const sf::Vector2i mousePixel = sf::Mouse::getPosition(window);
-        const sf::Vector2f worldMousePos = window.mapPixelToCoords(mousePixel);
+        const sf::Vector2f worldMousePos = window.mapPixelToCoords(mousePixel, session.camera().view());
+        const sf::Vector2f uiMousePos = window.mapPixelToCoords(mousePixel, window.getDefaultView());
 
         sf::Event event;
         while (window.pollEvent(event)) {
             if (event.type == sf::Event::Closed) {
                 window.close();
+            } else if (event.type == sf::Event::Resized) {
+                session.camera().setViewportSize({static_cast<float>(event.size.width), static_cast<float>(event.size.height)});
             } else {
-                ss::SessionEventResult res = session.handleEvent(event, worldMousePos);
+                ss::SessionEventResult res = session.handleEvent(event, worldMousePos, uiMousePos);
                 if (res == ss::SessionEventResult::RequestQuit) {
                     window.close();
                 }
@@ -230,7 +264,7 @@ int main(int argc, char* argv[])
         }
 
         // Run simulation / UI tick
-        session.update(dt, worldMousePos, options.autoplay);
+        session.update(dt, worldMousePos, options.autoplay, uiMousePos);
 
         // Render entire frame
         window.clear(sf::Color(14, 16, 24));

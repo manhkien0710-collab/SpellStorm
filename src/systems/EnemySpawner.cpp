@@ -18,6 +18,23 @@ EnemySpawner::EnemySpawner(const Arena& arena, Random& rng)
 
 sf::Vector2f EnemySpawner::generateSpawnPosition(sf::Vector2f playerPos, float minDistance)
 {
+    // In wide tilemap worlds, spawn enemies in an active engagement ring around the player
+    // on valid traversable terrain (outside screen view, avoiding water and solid obstacles)
+    if (m_arena.hasTileMap()) {
+        const float minSpawnDist = std::max(minDistance, 450.f);
+        const float maxSpawnDist = minSpawnDist + 350.f;
+
+        for (int attempt = 0; attempt < 24; ++attempt) {
+            const float angle = m_rng.range(0.f, math::kTwoPi);
+            const float dist = m_rng.range(minSpawnDist, maxSpawnDist);
+            const sf::Vector2f candidate = playerPos + math::fromAngle(angle) * dist;
+
+            if (m_arena.isTraversable(candidate, 24.f)) {
+                return candidate;
+            }
+        }
+    }
+
     const sf::FloatRect& b = m_arena.bounds();
     const float margin = 45.f;
     const float minX = b.left + margin;
@@ -32,7 +49,9 @@ sf::Vector2f EnemySpawner::generateSpawnPosition(sf::Vector2f playerPos, float m
         const float y = m_rng.range(minY, maxY);
         const sf::Vector2f candidate(x, y);
         if (math::distanceSq(candidate, playerPos) >= minSq) {
-            return candidate;
+            if (!m_arena.hasTileMap() || m_arena.isTraversable(candidate, 20.f)) {
+                return candidate;
+            }
         }
     }
 

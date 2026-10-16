@@ -8,6 +8,7 @@
 namespace ss::math {
 
 constexpr float kPi = 3.14159265358979f;
+constexpr float kTwoPi = 6.283185307179586f;
 
 inline float lengthSq(sf::Vector2f v) { return v.x * v.x + v.y * v.y; }
 inline float length(sf::Vector2f v) { return std::sqrt(lengthSq(v)); }

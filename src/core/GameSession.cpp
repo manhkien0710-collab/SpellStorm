@@ -13,6 +13,7 @@
 #include <limits>
 
 #include "core/ResourceManager.hpp"
+#include "environment/TileMap.hpp"
 
 namespace ss {
 
@@ -22,6 +23,7 @@ GameSession::GameSession(const Arena& arena, const SpellRegistry& registry, unsi
     , m_registry(registry)
     , m_rng(seed != 0 ? seed : 42)
     , m_player(arena.center())
+    , m_camera(sf::Vector2f(1280.f, 720.f), arena.bounds())
     , m_combatSystem(arena, m_effects)
     , m_spawner(arena, m_rng)
     , m_resources(resources)
@@ -33,6 +35,7 @@ void GameSession::restartMatch()
 {
     // 1. Reset player vital statistics, modifiers, position, alive flag
     m_player.reset(m_arena.center());
+    m_camera.setCenter(m_player.position());
 
     // 2. Clear all active entities and missiles
     m_enemies.clear();
@@ -217,8 +220,11 @@ void GameSession::handleContinuousInput(sf::Vector2f mousePos)
     }
 }
 
-SessionEventResult GameSession::handleEvent(const sf::Event& event, sf::Vector2f mousePos)
+SessionEventResult GameSession::handleEvent(const sf::Event& event, sf::Vector2f worldMousePos,
+                                            std::optional<sf::Vector2f> uiMousePos)
 {
+    const sf::Vector2f uiPos = uiMousePos.value_or(worldMousePos);
+
     if (event.type == sf::Event::KeyReleased && event.key.code == sf::Keyboard::V) {
         m_toggleKeyHeld = false;
     }
@@ -226,16 +232,16 @@ SessionEventResult GameSession::handleEvent(const sf::Event& event, sf::Vector2f
     // 1. Game Over screen has highest input priority when active
     if (m_gameOverOverlay.isOpen()) {
         if (event.type == sf::Event::MouseMoved) {
-            m_gameOverOverlay.handleMouseMove(mousePos);
+            m_gameOverOverlay.handleMouseMove(uiPos);
             return SessionEventResult::Handled;
         } else if (event.type == sf::Event::MouseButtonPressed) {
             if (event.mouseButton.button == sf::Mouse::Left) {
-                m_gameOverOverlay.handleMouseButtonPressed(mousePos);
+                m_gameOverOverlay.handleMouseButtonPressed(uiPos);
             }
             return SessionEventResult::Handled;
         } else if (event.type == sf::Event::MouseButtonReleased) {
             if (event.mouseButton.button == sf::Mouse::Left) {
-                GameOverAction action = m_gameOverOverlay.handleMouseButtonReleased(mousePos);
+                GameOverAction action = m_gameOverOverlay.handleMouseButtonReleased(uiPos);
                 if (action == GameOverAction::Restart) {
                     restartMatch();
                     return SessionEventResult::Handled;
@@ -260,7 +266,7 @@ SessionEventResult GameSession::handleEvent(const sf::Event& event, sf::Vector2f
     // 2. Level Up modal input
     if (m_levelUpOverlay.isOpen()) {
         if (event.type == sf::Event::MouseMoved) {
-            m_levelUpOverlay.handleMouseMove(mousePos);
+            m_levelUpOverlay.handleMouseMove(uiPos);
             return SessionEventResult::Handled;
         } else if (event.type == sf::Event::KeyPressed) {
             if (event.key.code == sf::Keyboard::Escape) {
@@ -272,7 +278,7 @@ SessionEventResult GameSession::handleEvent(const sf::Event& event, sf::Vector2f
             return SessionEventResult::Handled;
         } else if (event.type == sf::Event::MouseButtonPressed) {
             if (event.mouseButton.button == sf::Mouse::Left) {
-                if (m_levelUpOverlay.handleMouseClick(mousePos)) {
+                if (m_levelUpOverlay.handleMouseClick(uiPos)) {
                     applySelectedLevelUpUpgrade();
                 }
             }
@@ -335,7 +341,7 @@ SessionEventResult GameSession::handleEvent(const sf::Event& event, sf::Vector2f
     } else if (event.type == sf::Event::MouseButtonPressed) {
         if (event.mouseButton.button == sf::Mouse::Left) {
             if (m_shootingMode == ShootingMode::Manual) {
-                castSpell(mousePos);
+                castSpell(worldMousePos);
             }
             return SessionEventResult::Handled;
         }
@@ -344,8 +350,11 @@ SessionEventResult GameSession::handleEvent(const sf::Event& event, sf::Vector2f
     return SessionEventResult::None;
 }
 
-void GameSession::update(float dt, sf::Vector2f mousePos, bool autoplay)
+void GameSession::update(float dt, sf::Vector2f worldMousePos, bool autoplay,
+                        std::optional<sf::Vector2f> uiMousePos)
 {
+    const sf::Vector2f uiPos = uiMousePos.value_or(worldMousePos);
+
     // Transient mode change notification timer
     if (m_modeNotificationTimer > 0.f) {
         m_modeNotificationTimer = std::max(0.f, m_modeNotificationTimer - dt);
@@ -353,7 +362,7 @@ void GameSession::update(float dt, sf::Vector2f mousePos, bool autoplay)
 
     // 1. If Game Over is active, gameplay simulation remains completely frozen
     if (m_gameOverOverlay.isOpen()) {
-        m_gameOverOverlay.handleMouseMove(mousePos);
+        m_gameOverOverlay.handleMouseMove(uiPos);
         m_gameOverOverlay.update(dt);
         return;
     }
@@ -366,7 +375,7 @@ void GameSession::update(float dt, sf::Vector2f mousePos, bool autoplay)
 
     // 3. If Level-Up modal is open, gameplay simulation remains frozen
     if (m_levelUpOverlay.isOpen()) {
-        m_levelUpOverlay.handleMouseMove(mousePos);
+        m_levelUpOverlay.handleMouseMove(uiPos);
         m_levelUpOverlay.update(dt);
 
         if (autoplay && !m_levelUpOverlay.options().empty()) {
@@ -385,10 +394,16 @@ void GameSession::update(float dt, sf::Vector2f mousePos, bool autoplay)
     // 4. Normal gameplay simulation tick
     m_matchElapsed += dt;
 
-    // Update player movement and bounds
+    // Update player movement, collision resolution, and bounds
+    const sf::Vector2f oldPlayerPos = m_player.position();
     m_player.handleInput(dt);
+    const sf::Vector2f resolvedPlayerPos = m_arena.resolveCollision(oldPlayerPos, m_player.position(), m_player.radius());
+    m_player.setPosition(resolvedPlayerPos);
     m_player.constrainToBounds(m_arena.bounds());
     m_player.update(dt);
+
+    // Camera smoothly follows player across world
+    m_camera.update(m_player.position(), dt, 14.f);
 
     // Shooting execution based on active shooting mode
     if (autoplay) {
@@ -400,18 +415,18 @@ void GameSession::update(float dt, sf::Vector2f mousePos, bool autoplay)
                 castSpell(target->position());
             }
         } else {
-            m_player.setAimTarget(mousePos);
+            m_player.setAimTarget(worldMousePos);
         }
     } else if (m_shootingMode == ShootingMode::Auto) {
         // Auto-shot mode: shooting direction moves according to the player's mouse, firing automatically
-        m_player.setAimTarget(mousePos);
+        m_player.setAimTarget(worldMousePos);
         if (m_player.canCast()) {
-            castSpell(mousePos);
+            castSpell(worldMousePos);
         }
     } else {
         // Manual shooting: aim follows cursor, continuous attack if LMB held
-        m_player.setAimTarget(mousePos);
-        handleContinuousInput(mousePos);
+        m_player.setAimTarget(worldMousePos);
+        handleContinuousInput(worldMousePos);
     }
 
     // Update enemy spawner
@@ -419,7 +434,10 @@ void GameSession::update(float dt, sf::Vector2f mousePos, bool autoplay)
 
     // Update enemies: AI navigation, bounds, contact damage, ranged attacks
     for (auto& enemy : m_enemies) {
+        const sf::Vector2f oldEnemyPos = enemy->position();
         enemy->updateAI(dt, m_player.position());
+        const sf::Vector2f resolvedEnemyPos = m_arena.resolveCollision(oldEnemyPos, enemy->position(), enemy->radius());
+        enemy->setPosition(resolvedEnemyPos);
         enemy->constrainToBounds(m_arena.bounds());
         enemy->update(dt);
 
@@ -489,23 +507,42 @@ void GameSession::render(sf::RenderTarget& target, const sf::Font* font, const R
     const sf::Font* bodyFont = font ? font : (res && res->hasFont(FontId::Body) ? res->getFont(FontId::Body) : nullptr);
     const sf::Font* boldFont = (res && res->hasFont(FontId::Bold)) ? res->getFont(FontId::Bold) : bodyFont;
 
-    // 1. Arena floor, runes, walls, and bastions
+    // 1. Set world view for game world rendering
+    target.setView(m_camera.view());
+
+    // 2. Arena floor, runes, terrain, or tilemap
     m_arena.draw(target, res);
 
-    // 2. Active Enemies
+    // 3. Active Enemies
     for (const auto& enemy : m_enemies) {
         enemy->draw(target, res);
     }
 
-    // 3. In-flight Projectiles
+    // 4. In-flight Projectiles
     m_combatSystem.draw(target, res);
 
-    // 4. Experience Pickups
+    // 5. Experience Pickups
     m_expSystem.draw(target, res);
 
-    // 5. Player & Visual Effects
+    // 6. Player & Visual Effects
     m_player.draw(target, res);
     m_effects.draw(target);
+
+    // 7. Reset to default UI view for fixed HUD, Minimap, and Modals
+    target.setView(target.getDefaultView());
+
+    // 8. Minimap (if wide tilemap world is active)
+    if (m_arena.hasTileMap() && m_arena.tileMap()) {
+        std::vector<sf::Vector2f> enemyPositions;
+        enemyPositions.reserve(m_enemies.size());
+        for (const auto& e : m_enemies) {
+            if (e && e->isAlive()) {
+                enemyPositions.push_back(e->position());
+            }
+        }
+        m_arena.tileMap()->drawMinimap(target, {1110.f, 545.f}, {150.f, 150.f},
+                                       m_player.position(), enemyPositions, bodyFont);
+    }
 
     // 6. HUD elements
     if (bodyFont) {

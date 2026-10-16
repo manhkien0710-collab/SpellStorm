@@ -95,11 +95,46 @@ void Player::draw(sf::RenderTarget& target, const ResourceManager* resources) co
     // 1. Soft Shadow
     draw::shadow(target, pos, r);
 
-    const sf::Texture* tex = resources ? resources->getTexture(TextureId::Player) : nullptr;
+    // Determine primary facing direction from aim angle
+    TextureId activeTexId = TextureId::Player;
+    bool flipXAxis = false;
+
+    if (resources) {
+        const float pi = math::kPi;
+        if (m_aimAngle >= pi * 0.25f && m_aimAngle < pi * 0.75f) {
+            // Facing Down (South)
+            activeTexId = resources->hasTexture(TextureId::PlayerDown) ? TextureId::PlayerDown : TextureId::Player;
+        } else if (m_aimAngle <= -pi * 0.25f && m_aimAngle > -pi * 0.75f) {
+            // Facing Up (North)
+            activeTexId = resources->hasTexture(TextureId::PlayerUp) ? TextureId::PlayerUp : TextureId::Player;
+        } else if (std::abs(m_aimAngle) >= pi * 0.75f) {
+            // Facing Left (West)
+            if (resources->hasTexture(TextureId::PlayerLeft)) {
+                activeTexId = TextureId::PlayerLeft;
+            } else if (resources->hasTexture(TextureId::PlayerRight)) {
+                activeTexId = TextureId::PlayerRight;
+                flipXAxis = true;
+            } else {
+                activeTexId = TextureId::Player;
+                flipXAxis = true;
+            }
+        } else {
+            // Facing Right (East)
+            activeTexId = resources->hasTexture(TextureId::PlayerRight) ? TextureId::PlayerRight : TextureId::Player;
+        }
+    }
+
+    const sf::Texture* tex = resources ? resources->getTexture(activeTexId) : nullptr;
+    if (!tex && resources) {
+        tex = resources->getTexture(TextureId::Player);
+        activeTexId = TextureId::Player;
+        flipXAxis = (std::cos(m_aimAngle) < 0.f);
+    }
+
     if (tex) {
         // Multi-frame animation: frame 0 (idle), frame 1 (stride)
         const int frame = (math::lengthSq(velocity()) > 1.f) ? (static_cast<int>(m_animTimer) % 2) : 0;
-        sf::IntRect frameRect = resources->getFrameRect(TextureId::Player, frame);
+        sf::IntRect frameRect = resources->getFrameRect(activeTexId, frame);
         if (frameRect.width <= 0 || frameRect.height <= 0) {
             frameRect = sf::IntRect(0, 0, 32, 32);
         }
@@ -111,8 +146,8 @@ void Player::draw(sf::RenderTarget& target, const ResourceManager* resources) co
         // Decoupled uniform scale: visual size matches collision diameter (2.1 * r) without distortion
         const float visualDiameter = r * 2.1f;
         const float scale = visualDiameter / static_cast<float>(frameRect.height);
-        const float flipX = (std::cos(m_aimAngle) < 0.f) ? -scale : scale;
-        sprite.setScale(flipX, scale);
+        const float scaleX = flipXAxis ? -scale : scale;
+        sprite.setScale(scaleX, scale);
 
         // Status effect tints & hitflashes apply dynamically
         const sf::Color tint = draw::characterTint(*this, sf::Color::White);

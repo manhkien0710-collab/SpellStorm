@@ -216,6 +216,10 @@ bool ResourceManager::loadDefaultAssets()
 
     // 2. Character & Enemy Textures
     loadTexture(TextureId::Player, "characters/wizard.png");
+    loadTexture(TextureId::PlayerDown, "characters/mage_down.png");
+    loadTexture(TextureId::PlayerUp, "characters/mage_up.png");
+    loadTexture(TextureId::PlayerLeft, "characters/mage_left.png");
+    loadTexture(TextureId::PlayerRight, "characters/mage_right.png");
     loadTexture(TextureId::MeleeEnemy, "enemies/melee_fiend.png");
     loadTexture(TextureId::RangedEnemy, "enemies/ranged_cultist.png");
     loadTexture(TextureId::TankEnemy, "enemies/tank_golem.png");
@@ -226,6 +230,7 @@ bool ResourceManager::loadDefaultAssets()
     loadTexture(TextureId::ProjectileLightning, "projectiles/spell_lightning.png");
     loadTexture(TextureId::ProjectileWind, "projectiles/spell_wind.png");
     loadTexture(TextureId::ProjectileEarth, "projectiles/spell_earth.png");
+    loadTexture(TextureId::ProjectilePlayer, "projectiles/projectile_player.png");
     loadTexture(TextureId::ProjectileEnemy, "projectiles/projectile_enemy.png");
 
     // 4. Pickups
@@ -233,12 +238,42 @@ bool ResourceManager::loadDefaultAssets()
     loadTexture(TextureId::GemEmerald, "pickups/gem_emerald.png");
     loadTexture(TextureId::GemGold, "pickups/gem_gold.png");
 
-    // 5. Environment
+    // 5. Environment & Terrain
     loadTexture(TextureId::ArenaFloor, "environment/floor_tile.png");
+    loadTexture(TextureId::TileGrass, "terrain/grass.png");
+    loadTexture(TextureId::TileDirt, "terrain/dirt.png");
+    loadTexture(TextureId::TileStone, "terrain/stone.png");
+    loadTexture(TextureId::TileWater, "terrain/water.png");
+    loadTexture(TextureId::TileSand, "terrain/sand.png");
+    loadTexture(TextureId::TileBridgeH, "terrain/bridge_h.png");
+    loadTexture(TextureId::TileBridgeV, "terrain/bridge_v.png");
+
+    // 6. Decorative Environment Objects
+    loadTexture(TextureId::DecoTreeOak, "environment/tree_oak.png");
+    loadTexture(TextureId::DecoTreePine, "environment/tree_pine.png");
+    loadTexture(TextureId::DecoRock, "environment/rock.png");
+    loadTexture(TextureId::DecoRockLarge, "environment/rock_large.png");
+    loadTexture(TextureId::DecoBush, "environment/bush.png");
+    loadTexture(TextureId::DecoLog, "environment/log.png");
+    loadTexture(TextureId::DecoRuins, "environment/ruins.png");
+    loadTexture(TextureId::DecoTent, "environment/camp_tent.png");
+    loadTexture(TextureId::DecoCampfire, "environment/campfire.png");
 
     // Register sprite sheets
     if (hasTexture(TextureId::Player)) {
         registerSpriteSheet(TextureId::Player, 32, 32, 2, 1, 2);
+    }
+    if (hasTexture(TextureId::PlayerDown)) {
+        registerSpriteSheet(TextureId::PlayerDown, 32, 32, 2, 1, 2);
+    }
+    if (hasTexture(TextureId::PlayerUp)) {
+        registerSpriteSheet(TextureId::PlayerUp, 32, 32, 2, 1, 2);
+    }
+    if (hasTexture(TextureId::PlayerLeft)) {
+        registerSpriteSheet(TextureId::PlayerLeft, 32, 32, 2, 1, 2);
+    }
+    if (hasTexture(TextureId::PlayerRight)) {
+        registerSpriteSheet(TextureId::PlayerRight, 32, 32, 2, 1, 2);
     }
     if (hasTexture(TextureId::MeleeEnemy)) {
         registerSpriteSheet(TextureId::MeleeEnemy, 32, 32, 1, 1, 1);
