@@ -47,12 +47,15 @@ public:
     float spawnTimer() const { return m_spawnTimer; }
 
     // Generates a valid arena position at least minDistance away from playerPos
-    sf::Vector2f generateSpawnPosition(sf::Vector2f playerPos, float minDistance = 220.f);
+    sf::Vector2f generateSpawnPosition(sf::Vector2f playerPos, float minDistance = 220.f, float entityRadius = 24.f);
 
     // Factory method creating a concrete enemy instance
     std::unique_ptr<Enemy> spawnEnemy(sf::Vector2f playerPos, std::optional<EnemyType> typeOverride = std::nullopt);
 
-    // Simulation update: increments match clock, adapts difficulty, and spawns enemies
+    // Factory method creating a boss encounter
+    std::unique_ptr<Enemy> spawnBoss(sf::Vector2f playerPos);
+
+    // Simulation update: increments match clock, adapts difficulty, and spawns enemies & bosses
     void update(float dt, sf::Vector2f playerPos, std::vector<std::unique_ptr<Enemy>>& activeEnemies);
 
     // Resets spawner timers, difficulty progress, and enemy cap back to match-start state
@@ -64,6 +67,7 @@ private:
 
     float m_elapsedTime = 0.f;
     float m_spawnTimer = 1.5f; // Initial grace period before first spawn
+    float m_bossSpawnTimer = 60.0f; // Boss spawns at 60s milestone, then periodic
     float m_baseInterval = 2.2f;
     float m_minInterval = 0.55f;
     float m_currentInterval = 2.2f;

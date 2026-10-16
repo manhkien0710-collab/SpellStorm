@@ -223,6 +223,8 @@ bool ResourceManager::loadDefaultAssets()
     loadTexture(TextureId::MeleeEnemy, "enemies/melee_fiend.png");
     loadTexture(TextureId::RangedEnemy, "enemies/ranged_cultist.png");
     loadTexture(TextureId::TankEnemy, "enemies/tank_golem.png");
+    loadTexture(TextureId::BossEnemy, "enemies/boss_colossus.png");
+    loadTexture("boss_colossus", "enemies/boss_colossus.png");
 
     // 3. Projectiles
     loadTexture(TextureId::ProjectileFire, "projectiles/spell_fire.png");
@@ -283,6 +285,9 @@ bool ResourceManager::loadDefaultAssets()
     }
     if (hasTexture(TextureId::TankEnemy)) {
         registerSpriteSheet(TextureId::TankEnemy, 48, 48, 1, 1, 1);
+    }
+    if (hasTexture(TextureId::BossEnemy)) {
+        registerSpriteSheet(TextureId::BossEnemy, 64, 64, 1, 1, 1);
     }
 
     return hasFont(FontId::Body);

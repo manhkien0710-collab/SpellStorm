@@ -5,6 +5,7 @@
 #include "core/MathUtils.hpp"
 #include "core/ResourceManager.hpp"
 #include "environment/TileMap.hpp"
+#include "systems/PathfindingSystem.hpp"
 
 #include <SFML/Graphics/RectangleShape.hpp>
 #include <SFML/Graphics/Sprite.hpp>
@@ -20,6 +21,20 @@ Arena::Arena(sf::Vector2f center, sf::Vector2f size)
     , m_size(size)
     , m_bounds(center.x - size.x * 0.5f, center.y - size.y * 0.5f, size.x, size.y)
 {
+}
+
+Arena::~Arena() = default;
+Arena::Arena(Arena&&) noexcept = default;
+Arena& Arena::operator=(Arena&&) noexcept = default;
+
+void Arena::setTileMap(std::shared_ptr<TileMap> tileMap)
+{
+    m_tileMap = std::move(tileMap);
+    if (m_tileMap) {
+        m_pathfinder = std::make_unique<PathfindingSystem>(*m_tileMap);
+    } else {
+        m_pathfinder.reset();
+    }
 }
 
 sf::Vector2f Arena::clampPosition(sf::Vector2f position, float radius) const
@@ -58,13 +73,20 @@ sf::Vector2f Arena::resolveCollision(sf::Vector2f oldPos, sf::Vector2f newPos, f
     return clampPosition(newPos, radius);
 }
 
-void Arena::draw(sf::RenderTarget& target, const ResourceManager* resources) const
+void Arena::draw(sf::RenderTarget& target, const ResourceManager* resources, const Camera* camera) const
 {
     if (m_tileMap) {
-        Camera cam(target.getView().getSize(), m_bounds);
-        cam.setCenter(target.getView().getCenter());
-        m_tileMap->drawTerrain(target, resources, cam);
-        m_tileMap->drawDecorations(target, resources, cam);
+        if (camera) {
+            m_tileMap->drawTerrain(target, resources, *camera);
+            m_tileMap->drawDecorations(target, resources, *camera);
+        } else {
+            // If no camera passed, use the active view on target directly with 1.0f zoom (no double-scaling)
+            const sf::View& currentView = target.getView();
+            Camera viewCam(currentView.getSize(), m_bounds, 1.0f);
+            viewCam.setCenter(currentView.getCenter());
+            m_tileMap->drawTerrain(target, resources, viewCam);
+            m_tileMap->drawDecorations(target, resources, viewCam);
+        }
         return;
     }
 

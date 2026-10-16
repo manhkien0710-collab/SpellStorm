@@ -53,7 +53,8 @@ enum class TextureId {
     PlayerUp,
     PlayerLeft,
     PlayerRight,
-    ProjectilePlayer
+    ProjectilePlayer,
+    BossEnemy
 };
 
 // Lightweight sprite sheet descriptor for grid-based multi-frame animation.

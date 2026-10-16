@@ -6,15 +6,41 @@
 
 namespace ss {
 
-Camera::Camera(sf::Vector2f viewportSize, sf::FloatRect worldBounds)
+Camera::Camera(sf::Vector2f viewportSize, sf::FloatRect worldBounds, float initialZoom)
     : m_worldBounds(worldBounds)
+    , m_viewportSize(viewportSize)
+    , m_zoom(std::clamp(initialZoom, kMinZoom, kMaxZoom))
+    , m_targetZoom(m_zoom)
 {
-    m_view.setSize(viewportSize);
+    applyZoom();
     const sf::Vector2f initialCenter(
         worldBounds.left + worldBounds.width * 0.5f,
         worldBounds.top + worldBounds.height * 0.5f
     );
     setCenter(initialCenter);
+}
+
+void Camera::applyZoom()
+{
+    m_view.setSize(m_viewportSize.x / m_zoom, m_viewportSize.y / m_zoom);
+}
+
+void Camera::setZoom(float zoom)
+{
+    m_zoom = std::clamp(zoom, kMinZoom, kMaxZoom);
+    m_targetZoom = m_zoom;
+    applyZoom();
+    m_view.setCenter(clampCenter(m_view.getCenter()));
+}
+
+void Camera::setTargetZoom(float targetZoom)
+{
+    m_targetZoom = std::clamp(targetZoom, kMinZoom, kMaxZoom);
+}
+
+void Camera::zoomBy(float deltaZoom)
+{
+    setTargetZoom(m_targetZoom + deltaZoom);
 }
 
 sf::Vector2f Camera::clampCenter(sf::Vector2f desiredCenter) const
@@ -48,6 +74,19 @@ sf::Vector2f Camera::clampCenter(sf::Vector2f desiredCenter) const
 
 void Camera::update(sf::Vector2f targetPos, float dt, float smoothSpeed)
 {
+    // Smooth zoom interpolation
+    if (dt > 0.f && std::abs(m_zoom - m_targetZoom) > 1e-4f) {
+        const float zoomT = 1.0f - std::exp(-10.f * dt);
+        m_zoom += (m_targetZoom - m_zoom) * zoomT;
+        if (std::abs(m_zoom - m_targetZoom) < 1e-4f) {
+            m_zoom = m_targetZoom;
+        }
+        applyZoom();
+    } else if (dt <= 0.f) {
+        m_zoom = m_targetZoom;
+        applyZoom();
+    }
+
     const sf::Vector2f targetCenter = clampCenter(targetPos);
 
     if (smoothSpeed <= 0.f || dt <= 0.f) {
@@ -67,7 +106,8 @@ void Camera::setCenter(sf::Vector2f center)
 
 void Camera::setViewportSize(sf::Vector2f size)
 {
-    m_view.setSize(size);
+    m_viewportSize = size;
+    applyZoom();
     m_view.setCenter(clampCenter(m_view.getCenter()));
 }
 

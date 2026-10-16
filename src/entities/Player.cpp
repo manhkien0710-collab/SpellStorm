@@ -143,8 +143,8 @@ void Player::draw(sf::RenderTarget& target, const ResourceManager* resources) co
         sprite.setOrigin(frameRect.width * 0.5f, frameRect.height * 0.5f);
         sprite.setPosition(pos);
 
-        // Decoupled uniform scale: visual size matches collision diameter (2.1 * r) without distortion
-        const float visualDiameter = r * 2.1f;
+        // Decoupled uniform scale: visual size matches collision envelope (2.35 * r) cleanly without distortion
+        const float visualDiameter = r * 2.35f;
         const float scale = visualDiameter / static_cast<float>(frameRect.height);
         const float scaleX = flipXAxis ? -scale : scale;
         sprite.setScale(scaleX, scale);
@@ -157,7 +157,7 @@ void Player::draw(sf::RenderTarget& target, const ResourceManager* resources) co
 
         // Orbiting spellcasting catalyst orb
         const float pulse = 1.f + 0.15f * std::sin(m_animTimer);
-        const sf::Vector2f orbPos = pos + math::fromAngle(m_aimAngle) * (r + 10.f);
+        const sf::Vector2f orbPos = pos + math::fromAngle(m_aimAngle) * (r + 11.f);
         draw::circle(target, orbPos, 6.f * pulse, sf::Color(100, 215, 255), sf::Color::White, 1.5f);
         return;
     }
@@ -175,7 +175,7 @@ void Player::draw(sf::RenderTarget& target, const ResourceManager* resources) co
 
     // 5. Catalyst Orb / Magic Focus (Orbiting along aim angle)
     const float pulse = 1.f + 0.15f * std::sin(m_animTimer);
-    const sf::Vector2f orbPos = pos + math::fromAngle(m_aimAngle) * (r + 10.f);
+    const sf::Vector2f orbPos = pos + math::fromAngle(m_aimAngle) * (r + 11.f);
     draw::circle(target, orbPos, 6.f * pulse, sf::Color(100, 215, 255), sf::Color::White, 1.5f);
 }
 

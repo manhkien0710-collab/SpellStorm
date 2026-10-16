@@ -1,9 +1,11 @@
 #include "entities/RangedEnemy.hpp"
 #include "entities/Projectile.hpp"
 
+#include "core/Arena.hpp"
 #include "core/DrawUtils.hpp"
 #include "core/MathUtils.hpp"
 #include "core/ResourceManager.hpp"
+#include "systems/PathfindingSystem.hpp"
 
 #include <SFML/Graphics/Sprite.hpp>
 #include <cmath>
@@ -36,7 +38,7 @@ std::unique_ptr<Projectile> RangedEnemy::shoot(sf::Vector2f targetPos)
     );
 }
 
-void RangedEnemy::updateAI(float dt, sf::Vector2f targetPos)
+void RangedEnemy::updateAI(float dt, sf::Vector2f targetPos, const Arena* arena)
 {
     if (!isAlive()) {
         return;
@@ -55,16 +57,23 @@ void RangedEnemy::updateAI(float dt, sf::Vector2f targetPos)
     }
 
     const sf::Vector2f dir = diff / dist;
-    m_inAttackRange = (dist <= m_preferredDistance + 70.f);
 
-    if (dist > m_preferredDistance + m_distanceTolerance) {
-        // Too far away: approach player
-        moveInDirection(dir, 1.f, dt);
+    // Line of sight verification across obstacles and rivers
+    bool hasLos = true;
+    if (arena && arena->pathfinder()) {
+        hasLos = arena->pathfinder()->hasLineOfSight(position(), targetPos, radius());
+    }
+
+    m_inAttackRange = (dist <= m_preferredDistance + 70.f) && hasLos;
+
+    if (!hasLos || dist > m_preferredDistance + m_distanceTolerance) {
+        // Obstructed or too far away: steer via navigation towards player
+        steerWithNavigation(dt, targetPos, arena, 1.f);
     } else if (dist < m_preferredDistance - m_distanceTolerance) {
-        // Too close: retreat / kite away from player
+        // Too close with clear LOS: retreat / kite away from player
         moveInDirection(-dir, 1.f, dt);
     } else {
-        // In preferred range sweet spot: strafe laterally around player
+        // In preferred range sweet spot with LOS: strafe laterally around player
         const sf::Vector2f strafeDir = math::perpendicular(dir);
         const float strafeFactor = std::sin(m_animTimer * 1.5f) > 0.f ? 0.45f : -0.45f;
         moveInDirection(strafeDir, strafeFactor, dt);

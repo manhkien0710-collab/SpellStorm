@@ -8,6 +8,7 @@
 #include "core/MathUtils.hpp"
 #include "core/Random.hpp"
 #include "core/ResourceManager.hpp"
+#include "entities/BossEnemy.hpp"
 #include "entities/MeleeEnemy.hpp"
 #include "entities/Player.hpp"
 #include "entities/RangedEnemy.hpp"
@@ -36,6 +37,8 @@ int main(int argc, char* argv[])
     bool testBridge = false;
     bool testRuins = false;
     bool testCampsite = false;
+    bool testBoss = false;
+    bool testPowerUp = false;
 
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
@@ -57,6 +60,10 @@ int main(int argc, char* argv[])
             testRuins = true;
         } else if (arg == "--test-campsite") {
             testCampsite = true;
+        } else if (arg == "--test-boss") {
+            testBoss = true;
+        } else if (arg == "--test-powerup") {
+            testPowerUp = true;
         } else if (arg == "--test-restart-flow") {
             testRestartFlow = true;
             options.autoplay = true;
@@ -185,10 +192,14 @@ int main(int argc, char* argv[])
     } else if (testAutoShot) {
         session.toggleShootingMode();
     } else if (testBridge) {
-        // Position player and camera on the river bridge
+        // Position player on east bank near bridge, and spawn enemies on opposite west bank
         const sf::Vector2f bridgePos(1360.f, 2064.f);
-        session.player().setPosition(bridgePos);
+        session.player().setPosition(bridgePos + sf::Vector2f(220.f, 0.f));
         session.camera().setCenter(bridgePos);
+        // Spawn Melee, Tank, and Boss on the opposite riverbank
+        session.enemies().push_back(std::make_unique<ss::MeleeEnemy>(bridgePos + sf::Vector2f(-260.f, -40.f)));
+        session.enemies().push_back(std::make_unique<ss::TankEnemy>(bridgePos + sf::Vector2f(-280.f, 40.f)));
+        session.enemies().push_back(std::make_unique<ss::BossEnemy>(bridgePos + sf::Vector2f(-320.f, 0.f)));
     } else if (testRuins) {
         // Position player and camera at the ancient stone ruins sanctuary
         const sf::Vector2f ruinsPos(2832.f, 1136.f);
@@ -208,6 +219,21 @@ int main(int argc, char* argv[])
         session.experienceSystem().spawnPickup(playerPos + sf::Vector2f(0.f, 130.f), 25);  // Emerald gem
         session.experienceSystem().spawnPickup(playerPos + sf::Vector2f(110.f, 80.f), 50);  // Gold gem
         session.castSpell(playerPos + sf::Vector2f(100.f, 90.f));
+    } else if (testBoss) {
+        const sf::Vector2f playerPos = session.player().position();
+        auto boss = std::make_unique<ss::BossEnemy>(playerPos + sf::Vector2f(240.f, 0.f));
+        // Deal slight initial damage to boss to demonstrate immediate health bar ratio and percentage display
+        boss->takeDamage({200.f, false});
+        session.enemies().push_back(std::move(boss));
+        session.castSpell(playerPos + sf::Vector2f(240.f, 0.f));
+    } else if (testPowerUp) {
+        const sf::Vector2f playerPos = session.player().position();
+        // Spawn each type of powerup nearby to showcase their distinct visual gem silhouettes and auras
+        session.powerUpManager().spawnPickup(playerPos + sf::Vector2f(-110.f, -50.f), ss::PowerUpType::ArcaneOverdrive);
+        session.powerUpManager().spawnPickup(playerPos + sf::Vector2f(110.f, -50.f), ss::PowerUpType::PiercingSurge);
+        session.powerUpManager().spawnPickup(playerPos + sf::Vector2f(0.f, 95.f), ss::PowerUpType::ElementalBurst);
+        // And activate Arcane Overdrive so the screen-space HUD badge is visible with timer and countdown
+        session.powerUpManager().activeAbility().activate(ss::PowerUpType::ArcaneOverdrive);
     }
 
     sf::Clock clock;

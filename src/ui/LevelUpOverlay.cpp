@@ -4,8 +4,52 @@
 
 #include <SFML/Graphics/RectangleShape.hpp>
 #include <SFML/Graphics/Text.hpp>
+#include <sstream>
 
 namespace ss {
+
+std::vector<std::string> LevelUpOverlay::wrapText(const std::string& text, const sf::Font& font,
+                                                  unsigned int charSize, float maxWidth)
+{
+    std::vector<std::string> lines;
+    if (text.empty() || maxWidth <= 0.f) {
+        return lines;
+    }
+
+    std::stringstream paragraphStream(text);
+    std::string paragraph;
+    while (std::getline(paragraphStream, paragraph, '\n')) {
+        std::stringstream wordStream(paragraph);
+        std::string word;
+        std::string currentLine;
+
+        while (wordStream >> word) {
+            std::string candidate = currentLine.empty() ? word : (currentLine + " " + word);
+            sf::Text testText;
+            testText.setFont(font);
+            testText.setCharacterSize(charSize);
+            testText.setString(candidate);
+
+            if (testText.getLocalBounds().width <= maxWidth) {
+                currentLine = candidate;
+            } else {
+                if (!currentLine.empty()) {
+                    lines.push_back(currentLine);
+                    currentLine = word;
+                } else {
+                    // Single word exceeds maxWidth, must put it on its own line
+                    lines.push_back(word);
+                    currentLine.clear();
+                }
+            }
+        }
+        if (!currentLine.empty()) {
+            lines.push_back(currentLine);
+        }
+    }
+
+    return lines;
+}
 
 LevelUpOverlay::LevelUpOverlay()
 {
@@ -248,12 +292,18 @@ void LevelUpOverlay::draw(sf::RenderTarget& target, const sf::Font* font, const 
                      selected ? sf::Color(255, 215, 60) : sf::Color::White, 1.8f);
 
         if (bodyFont) {
-            // Card Title
+            // Card Title (with content-aware dynamic font sizing)
             sf::Text titleText;
             titleText.setFont(boldFont ? *boldFont : *bodyFont);
             titleText.setString(card.info.title);
-            titleText.setCharacterSize(18);
             titleText.setStyle(sf::Text::Bold);
+            unsigned int titleSize = 18;
+            titleText.setCharacterSize(titleSize);
+            const float maxTitleWidth = card.bounds.width - 24.f;
+            while (titleText.getLocalBounds().width > maxTitleWidth && titleSize > 13) {
+                --titleSize;
+                titleText.setCharacterSize(titleSize);
+            }
             titleText.setFillColor(selected ? sf::Color::White : (hovered ? sf::Color(240, 245, 255) : sf::Color(220, 225, 235)));
             const sf::FloatRect titleBounds = titleText.getLocalBounds();
             titleText.setOrigin(titleBounds.left + titleBounds.width * 0.5f, titleBounds.top);
@@ -274,16 +324,27 @@ void LevelUpOverlay::draw(sf::RenderTarget& target, const sf::Font* font, const 
             rankText.setPosition(card.bounds.left + card.bounds.width * 0.5f, card.bounds.top + 110.f);
             target.draw(rankText);
 
-            // Description
-            sf::Text descText;
-            descText.setFont(*bodyFont);
-            descText.setString(card.info.description);
-            descText.setCharacterSize(13);
-            descText.setFillColor(sf::Color(185, 200, 220));
-            const sf::FloatRect descBounds = descText.getLocalBounds();
-            descText.setOrigin(descBounds.left + descBounds.width * 0.5f, descBounds.top);
-            descText.setPosition(card.bounds.left + card.bounds.width * 0.5f, card.bounds.top + 150.f);
-            target.draw(descText);
+            // Description (reusable multi-line word-wrapping layout)
+            const float maxDescWidth = card.bounds.width - 36.f; // 18px horizontal padding
+            const std::vector<std::string> descLines = wrapText(card.info.description, *bodyFont, 13, maxDescWidth);
+            const float lineHeight = std::max(16.f, bodyFont->getLineSpacing(13) * 1.05f);
+            const float totalDescHeight = static_cast<float>(descLines.size()) * lineHeight;
+            const float descAreaTop = card.bounds.top + 138.f;
+            const float descAreaBottom = card.bounds.top + card.bounds.height - 56.f;
+            const float descAreaHeight = descAreaBottom - descAreaTop;
+            const float startDescY = descAreaTop + std::max(0.f, (descAreaHeight - totalDescHeight) * 0.3f);
+
+            for (std::size_t lineIdx = 0; lineIdx < descLines.size(); ++lineIdx) {
+                sf::Text descText;
+                descText.setFont(*bodyFont);
+                descText.setString(descLines[lineIdx]);
+                descText.setCharacterSize(13);
+                descText.setFillColor(sf::Color(185, 200, 220));
+                const sf::FloatRect descBounds = descText.getLocalBounds();
+                descText.setOrigin(descBounds.left + descBounds.width * 0.5f, descBounds.top);
+                descText.setPosition(card.bounds.left + card.bounds.width * 0.5f, startDescY + static_cast<float>(lineIdx) * lineHeight);
+                target.draw(descText);
+            }
 
             // Selection indicator badge inside card
             sf::RectangleShape cardBtn({card.bounds.width - 36.f, 32.f});

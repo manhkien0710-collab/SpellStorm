@@ -45,6 +45,10 @@ public:
     // Renders the overlay, choice cards, and confirmation button
     void draw(sf::RenderTarget& target, const sf::Font* font, const class ResourceManager* resources = nullptr) const;
 
+    // Reusable word-wrapping text layout helper
+    static std::vector<std::string> wrapText(const std::string& text, const sf::Font& font,
+                                             unsigned int charSize, float maxWidth);
+
     const std::vector<UpgradeInfo>& options() const { return m_options; }
     int hoveredIndex() const { return m_hoveredIndex; }
     bool isConfirmHovered() const { return m_confirmHovered; }

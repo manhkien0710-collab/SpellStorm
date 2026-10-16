@@ -2,6 +2,9 @@
 #include "combat/Damage.hpp"
 #include "combat/StatusEffect.hpp"
 #include "entities/Character.hpp"
+#include "entities/BossEnemy.hpp"
+#include "entities/TankEnemy.hpp"
+#include "entities/Projectile.hpp"
 
 namespace {
 
@@ -53,4 +56,45 @@ void runCombatTests()
     EXPECT_NEAR(dealt, 50.f, 0.01f);
     EXPECT_NEAR(health.current(), 150.f, 0.01f);
     EXPECT_NEAR(health.ratio(), 0.75f, 0.01f);
+
+    // =========================================================
+    // Boss Size, Durability & Combat Mechanics Tests
+    // =========================================================
+    ss::BossEnemy boss({500.f, 500.f});
+    ss::TankEnemy tank({600.f, 600.f});
+
+    EXPECT_TRUE(boss.isBoss());
+    EXPECT_FALSE(tank.isBoss());
+    EXPECT_EQ(boss.type(), ss::EnemyType::Boss);
+    EXPECT_EQ(boss.name(), "ANCIENT GOLEM OVERLORD");
+
+    // Durability verification: 8-15x ordinary tank enemy health
+    EXPECT_EQ(boss.maxHealth(), 1800.f);
+    EXPECT_EQ(tank.maxHealth(), 200.f);
+    EXPECT_GE(boss.maxHealth(), tank.maxHealth() * 8.f);
+    EXPECT_LE(boss.maxHealth(), tank.maxHealth() * 15.f);
+
+    // Size verification: substantially larger collision radius
+    EXPECT_EQ(boss.radius(), 50.f);
+    EXPECT_GE(boss.radius(), tank.radius() * 1.8f);
+
+    // Boss special attack volley mechanics
+    EXPECT_TRUE(boss.canFireVolley());
+    auto volley = boss.fireVolley({500.f, 300.f});
+    EXPECT_EQ(volley.size(), 3u);
+    EXPECT_FALSE(boss.canFireVolley());
+    for (const auto& p : volley) {
+        EXPECT_EQ(p->faction(), ss::ProjectileFaction::Enemy);
+        EXPECT_GT(p->damage(), 0.f);
+    }
+
+    // Damage & defeat verification
+    boss.takeDamage({900.f, false});
+    EXPECT_NEAR(boss.healthRatio(), 0.697f, 0.05f);
+    EXPECT_TRUE(boss.isAlive());
+
+    // Defeat boss
+    boss.takeDamage({2000.f, true}); // Critical finishing blow
+    EXPECT_FALSE(boss.isAlive());
+    EXPECT_EQ(boss.expReward(), 250);
 }

@@ -15,6 +15,8 @@
 #include "systems/PlayerProgression.hpp"
 #include "systems/UpgradeSystem.hpp"
 #include "ui/LevelUpOverlay.hpp"
+#include "core/ResourceManager.hpp"
+#include <SFML/Graphics/Text.hpp>
 
 #include <cmath>
 #include <vector>
@@ -519,5 +521,36 @@ void runProgressionTests()
         ui.close();
         EXPECT_FALSE(ui.isOpen());
         EXPECT_EQ(ui.selectedIndex(), -1);
+    }
+
+    // =========================================================
+    // 9. Reusable Text Wrapping & Card Bounds Layout Tests
+    // =========================================================
+    {
+        ss::ResourceManager resources;
+        if (resources.loadDefaultAssets()) {
+            const sf::Font* font = resources.getFont(ss::FontId::Body);
+            EXPECT_TRUE(font != nullptr);
+            if (font) {
+                // Piercing Lance description test with max card content width (280 - 36 = 244)
+                const std::string piercingDesc = "+1 Missile Pierce (max 2 ranks, -20% dmg/hit)";
+                const float maxWidth = 244.f;
+                auto lines = ss::LevelUpOverlay::wrapText(piercingDesc, *font, 13, maxWidth);
+
+                EXPECT_GE(lines.size(), 2u); // Must wrap into multiple lines!
+                for (const auto& line : lines) {
+                    sf::Text t(line, *font, 13);
+                    EXPECT_LE(t.getLocalBounds().width, maxWidth);
+                }
+
+                // Empty text yields zero lines
+                auto emptyLines = ss::LevelUpOverlay::wrapText("", *font, 13, maxWidth);
+                EXPECT_EQ(emptyLines.size(), 0u);
+
+                // Short text fits in one line
+                auto shortLines = ss::LevelUpOverlay::wrapText("+12% Move Speed", *font, 13, maxWidth);
+                EXPECT_EQ(shortLines.size(), 1u);
+            }
+        }
     }
 }

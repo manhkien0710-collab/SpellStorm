@@ -5,11 +5,15 @@
 #include "core/GameSession.hpp"
 #include "core/MathUtils.hpp"
 #include "core/ResourceManager.hpp"
+#include "entities/BossEnemy.hpp"
 #include "entities/MeleeEnemy.hpp"
 #include "entities/Player.hpp"
 #include "entities/Projectile.hpp"
+#include "entities/RangedEnemy.hpp"
+#include "entities/TankEnemy.hpp"
 #include "environment/TileMap.hpp"
 #include "spells/SpellRegistry.hpp"
+#include "systems/PathfindingSystem.hpp"
 
 #include <cmath>
 #include <iostream>
@@ -55,17 +59,39 @@ void testTileMapRiverAndBridges()
     }
     EXPECT_TRUE(foundWater);
 
-    // Bridge presence: check highway crossing at y=64
-    bool foundBridgeH = false;
-    for (int x = 30; x < 55; ++x) {
-        if (map.tileAt(x, 64) == ss::TileType::BridgeH) {
-            foundBridgeH = true;
-            EXPECT_FALSE(map.isSolidTile(x, 64)); // Bridges must allow traversal!
-            const sf::Vector2f bridgeWorld = map.tileToWorld(x, 64);
-            EXPECT_TRUE(map.isTraversable(bridgeWorld, 12.f));
+    // Verify all 5 distributed bridge crossings across the world map
+    const std::vector<int> bridgeYLevels = {13, 29, 64, 87, 111};
+    for (int by : bridgeYLevels) {
+        bool foundBridgeAtY = false;
+        for (int x = 20; x < 65; ++x) {
+            if (map.tileAt(x, by) == ss::TileType::BridgeH) {
+                foundBridgeAtY = true;
+                EXPECT_FALSE(map.isSolidTile(x, by)); // Bridges must allow traversal!
+                const sf::Vector2f bridgeWorld = map.tileToWorld(x, by);
+                EXPECT_TRUE(map.isTraversable(bridgeWorld, 12.f));
+            }
+        }
+        EXPECT_TRUE(foundBridgeAtY);
+    }
+
+    // Verify obstacle density reduction: total decorations must be <= 300 (down from ~480)
+    EXPECT_LE(map.decorations().size(), 300u);
+
+    // Verify no solid obstacles within 3 tiles of any bridge crossing
+    for (const auto& deco : map.decorations()) {
+        if (!deco.isSolid) continue;
+        const sf::Vector2i decoTile = map.worldToTile(deco.position);
+        for (int by : bridgeYLevels) {
+            if (std::abs(decoTile.y - by) <= 3) {
+                // Must not be near bridge x range
+                for (int x = 25; x <= 60; ++x) {
+                    if (map.tileAt(x, by) == ss::TileType::BridgeH) {
+                        EXPECT_GE(std::abs(decoTile.x - x), 3);
+                    }
+                }
+            }
         }
     }
-    EXPECT_TRUE(foundBridgeH);
 }
 
 void testTileMapCollisionSliding()
@@ -95,7 +121,7 @@ void testCameraClampingAndBounds()
     const sf::Vector2f viewport(1280.f, 720.f);
     const sf::FloatRect worldBounds(0.f, 0.f, 4096.f, 4096.f);
 
-    ss::Camera camera(viewport, worldBounds);
+    ss::Camera camera(viewport, worldBounds, 1.0f);
 
     // 1. Center of world
     camera.setCenter({2048.f, 2048.f});
@@ -235,6 +261,210 @@ void testNewArtAssetsLoading()
     }
 }
 
+void testCameraZoomAndMouseAiming()
+{
+    const sf::Vector2f viewport(1280.f, 720.f);
+    const sf::FloatRect worldBounds(0.f, 0.f, 4096.f, 4096.f);
+
+    ss::Camera camera(viewport, worldBounds, ss::Camera::kDefaultZoom);
+    EXPECT_NEAR(camera.zoom(), ss::Camera::kDefaultZoom, 0.001f);
+
+    // Zoom limits clamping
+    camera.setZoom(0.1f); // Below min
+    EXPECT_NEAR(camera.zoom(), ss::Camera::kMinZoom, 0.001f);
+
+    camera.setZoom(10.f); // Above max
+    EXPECT_NEAR(camera.zoom(), ss::Camera::kMaxZoom, 0.001f);
+
+    // ZoomBy
+    camera.setZoom(1.0f);
+    camera.zoomBy(0.25f);
+    EXPECT_NEAR(camera.targetZoom(), 1.25f, 0.001f);
+
+    // Smooth zoom interpolation
+    camera.update({2048.f, 2048.f}, 0.5f, 0.f);
+    EXPECT_NEAR(camera.zoom(), 1.25f, 0.02f);
+
+    // Clamping near world bounds under zoom
+    // At zoom = 2.0f, viewSize is (640, 360), half viewSize is (320, 180)
+    camera.setZoom(2.0f);
+    camera.setCenter({10.f, 10.f});
+    EXPECT_EQ(camera.center().x, 320.f);
+    EXPECT_EQ(camera.center().y, 180.f);
+    sf::FloatRect bounds2x = camera.visibleBounds();
+    EXPECT_GE(bounds2x.left, 0.f);
+    EXPECT_GE(bounds2x.top, 0.f);
+
+    // Aiming at multiple zoom levels
+    auto tileMap = std::make_shared<ss::TileMap>(42);
+    ss::Arena arena(tileMap->center(), tileMap->worldSize());
+    arena.setTileMap(tileMap);
+
+    ss::SpellRegistry registry;
+    auto testSpell = std::make_shared<ss::SpellDefinition>(
+        "ZoomFire", "Aim Test",
+        ss::ElementSet{ss::Element::Fire}, sf::Color::Red, sf::Color::Yellow,
+        ss::ProjectileProfile{1.0f, 1.0f, 10.f, 2.0f, 1.0f, 0.f, 0, 0}
+    );
+    registry.registerBase(ss::Element::Fire, testSpell);
+
+    ss::GameSession session(arena, registry, 42);
+
+    for (float testZoom : {0.75f, 1.0f, 1.35f, 1.8f, 2.25f}) {
+        session.camera().setZoom(testZoom);
+        const sf::Vector2f playerPos = session.player().position();
+
+        // Aim North-East (45 degrees)
+        const sf::Vector2f targetWorld = playerPos + sf::Vector2f(200.f, -200.f);
+        session.player().setAimTarget(targetWorld);
+        const float expectedAngle = -ss::math::kPi * 0.25f;
+        EXPECT_NEAR(session.player().aimAngle(), expectedAngle, 0.01f);
+
+        // Cast spell and verify projectile direction matches targetWorld
+        session.combatSystem().clearProjectiles();
+        session.player().reset(playerPos);
+        session.castSpell(targetWorld);
+        EXPECT_EQ(session.combatSystem().projectiles().size(), 1u);
+        if (!session.combatSystem().projectiles().empty()) {
+            const auto& p = session.combatSystem().projectiles().front();
+            const sf::Vector2f dir = p->direction();
+            EXPECT_NEAR(dir.x, std::cos(expectedAngle), 0.01f);
+            EXPECT_NEAR(dir.y, std::sin(expectedAngle), 0.01f);
+        }
+    }
+}
+
+void testCameraFrustumCoverage()
+{
+    auto map = std::make_shared<ss::TileMap>(42);
+    ss::Arena arena(map->center(), map->worldSize());
+    arena.setTileMap(map);
+
+    const sf::Vector2f winSize(1280.f, 720.f);
+    ss::Camera camera(winSize, arena.bounds(), 1.35f);
+
+    for (float z : {0.75f, 1.0f, 1.35f, 2.0f, 2.25f}) {
+        camera.setZoom(z);
+        camera.setCenter(map->center());
+        const sf::FloatRect vis = camera.visibleBounds();
+
+        EXPECT_NEAR(vis.width, winSize.x / z, 0.5f);
+        EXPECT_NEAR(vis.height, winSize.y / z, 0.5f);
+
+        // Clamped visible area must never leak outside world bounds
+        EXPECT_GE(vis.left, 0.f);
+        EXPECT_GE(vis.top, 0.f);
+        EXPECT_LE(vis.left + vis.width, map->worldSize().x);
+        EXPECT_LE(vis.top + vis.height, map->worldSize().y);
+    }
+}
+
+void testBridgeGeometryAndBossClearance()
+{
+    ss::TileMap map(42);
+
+    // Verify all 5 river bridges have 5-tile width and allow Boss (r=50) clearance
+    const std::vector<int> bridgeYCenters = {13, 30, 64, 87, 111};
+    for (int cy : bridgeYCenters) {
+        int bridgeSpan = 0;
+        int bridgeStartX = -1;
+        for (int x = 20; x <= 65; ++x) {
+            if (map.tileAt(x, cy) == ss::TileType::BridgeH) {
+                bridgeSpan++;
+                if (bridgeStartX == -1) bridgeStartX = x;
+            }
+        }
+        EXPECT_GE(bridgeSpan, 4);
+
+        const float bridgeWorldY = static_cast<float>(cy) * 32.f + 16.f;
+        const float bridgeWorldX = static_cast<float>(bridgeStartX + bridgeSpan / 2) * 32.f + 16.f;
+        const sf::Vector2f bridgeCenter(bridgeWorldX, bridgeWorldY);
+
+        // All entity tiers must be traversable on the bridge
+        EXPECT_TRUE(map.isTraversable(bridgeCenter, 16.f));
+        EXPECT_TRUE(map.isTraversable(bridgeCenter, 26.f));
+        EXPECT_TRUE(map.isTraversable(bridgeCenter, ss::BossEnemy::kBossRadius)); // Boss fits!
+    }
+}
+
+void testPathfindingSystemAStar()
+{
+    auto map = std::make_shared<ss::TileMap>(42);
+    ss::Arena arena(map->center(), map->worldSize());
+    arena.setTileMap(map);
+
+    EXPECT_TRUE(arena.hasPathfinder());
+    const auto* pf = arena.pathfinder();
+    EXPECT_NE(pf, nullptr);
+
+    // River separation without a direct bridge (y = 1500, between bridge at y=960 and y=2048)
+    const sf::Vector2f westBank(1000.f, 1500.f);
+    const sf::Vector2f eastBank(1700.f, 1500.f);
+
+    EXPECT_TRUE(arena.isTraversable(westBank, 16.f));
+    EXPECT_TRUE(arena.isTraversable(eastBank, 16.f));
+
+    // Line of sight raycasting across water must report blocked
+    EXPECT_FALSE(pf->hasLineOfSight(westBank, eastBank, 16.f));
+
+    // A* for normal enemy routes via bridge
+    auto path = pf->findPath(westBank, eastBank, 16.f);
+    EXPECT_FALSE(path.empty());
+    EXPECT_GE(path.size(), 2u);
+    EXPECT_NEAR(path.back().x, eastBank.x, 48.f);
+    EXPECT_NEAR(path.back().y, eastBank.y, 48.f);
+
+    // A* for Boss enemy across bridge
+    EXPECT_TRUE(arena.isTraversable(westBank, ss::BossEnemy::kBossRadius));
+    EXPECT_TRUE(arena.isTraversable(eastBank, ss::BossEnemy::kBossRadius));
+    auto bossPath = pf->findPath(westBank, eastBank, ss::BossEnemy::kBossRadius);
+    EXPECT_FALSE(bossPath.empty());
+    EXPECT_NEAR(bossPath.back().x, eastBank.x, 48.f);
+
+    // Line of sight along clear stretch must report true
+    EXPECT_TRUE(pf->hasLineOfSight(westBank, westBank + sf::Vector2f(100.f, 0.f), 16.f));
+
+    // Fallback for unreachable water target (find actual deep water at y=46 between bridges)
+    sf::Vector2f deepWater(0.f, 0.f);
+    for (int x = 30; x <= 60; ++x) {
+        if (map->tileAt(x, 46) == ss::TileType::Water) {
+            deepWater = map->tileToWorld(x, 46) + sf::Vector2f(16.f, 16.f);
+            break;
+        }
+    }
+    EXPECT_GT(deepWater.x, 0.f);
+    EXPECT_FALSE(arena.isTraversable(deepWater, 16.f));
+    auto fallback = pf->findPath(westBank, deepWater, 16.f);
+    EXPECT_FALSE(fallback.empty());
+}
+
+void testEnemyPathfindingSteering()
+{
+    auto map = std::make_shared<ss::TileMap>(42);
+    ss::Arena arena(map->center(), map->worldSize());
+    arena.setTileMap(map);
+
+    // Separated by river at y = 1500
+    const sf::Vector2f westBank(1000.f, 1500.f);
+    const sf::Vector2f eastBank(1700.f, 1500.f);
+
+    // 1. MeleeEnemy navigation across river
+    ss::MeleeEnemy melee(westBank);
+    melee.updateAI(0.1f, eastBank, &arena);
+    EXPECT_FALSE(melee.navPath().empty());
+
+    // 2. BossEnemy navigation across river
+    ss::BossEnemy boss(westBank);
+    boss.updateAI(0.1f, eastBank, &arena);
+    EXPECT_FALSE(boss.navPath().empty());
+
+    // 3. RangedEnemy navigation when blocked by river
+    ss::RangedEnemy ranged(westBank);
+    ranged.updateAI(0.1f, eastBank, &arena);
+    EXPECT_FALSE(ranged.isInAttackRange()); // LOS blocked by river
+    EXPECT_FALSE(ranged.navPath().empty());
+}
+
 void runWorldCameraTests()
 {
     std::cout << "--- Running Wide World, TileMap & Camera Tests ---" << std::endl;
@@ -245,4 +475,9 @@ void runWorldCameraTests()
     testWorldCoordinatesMouseAiming();
     testAutoShotWorldTargeting();
     testNewArtAssetsLoading();
+    testCameraZoomAndMouseAiming();
+    testCameraFrustumCoverage();
+    testBridgeGeometryAndBossClearance();
+    testPathfindingSystemAStar();
+    testEnemyPathfindingSteering();
 }

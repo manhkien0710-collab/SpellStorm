@@ -23,7 +23,7 @@ public:
     std::unique_ptr<class Projectile> shoot(sf::Vector2f targetPos);
 
     void update(float dt) override;
-    void updateAI(float dt, sf::Vector2f targetPos) override;
+    void updateAI(float dt, sf::Vector2f targetPos, const class Arena* arena = nullptr) override;
     void draw(sf::RenderTarget& target) const override;
     void draw(sf::RenderTarget& target, const class ResourceManager* resources) const override;
 

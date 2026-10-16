@@ -13,6 +13,7 @@
 #include "systems/EnemySpawner.hpp"
 #include "systems/ExperienceSystem.hpp"
 #include "systems/PlayerProgression.hpp"
+#include "systems/PowerUpManager.hpp"
 #include "systems/UpgradeSystem.hpp"
 #include "ui/GameOverOverlay.hpp"
 #include "ui/LevelUpOverlay.hpp"
@@ -97,6 +98,9 @@ public:
     EnemySpawner& spawner() { return m_spawner; }
     const EnemySpawner& spawner() const { return m_spawner; }
 
+    PowerUpManager& powerUpManager() { return m_powerUpManager; }
+    const PowerUpManager& powerUpManager() const { return m_powerUpManager; }
+
     std::vector<std::unique_ptr<Enemy>>& enemies() { return m_enemies; }
     const std::vector<std::unique_ptr<Enemy>>& enemies() const { return m_enemies; }
 
@@ -147,6 +151,7 @@ private:
     EffectSystem m_effects;
     CombatSystem m_combatSystem;
     ExperienceSystem m_expSystem;
+    PowerUpManager m_powerUpManager;
     PlayerProgression m_progression;
     UpgradeManager m_upgradeManager;
     EnemySpawner m_spawner;

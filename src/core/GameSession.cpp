@@ -1,6 +1,7 @@
 #include "core/GameSession.hpp"
 #include "core/DrawUtils.hpp"
 #include "core/MathUtils.hpp"
+#include "entities/BossEnemy.hpp"
 #include "entities/MeleeEnemy.hpp"
 #include "entities/Projectile.hpp"
 #include "entities/RangedEnemy.hpp"
@@ -25,6 +26,7 @@ GameSession::GameSession(const Arena& arena, const SpellRegistry& registry, unsi
     , m_player(arena.center())
     , m_camera(sf::Vector2f(1280.f, 720.f), arena.bounds())
     , m_combatSystem(arena, m_effects)
+    , m_powerUpManager(arena, m_rng)
     , m_spawner(arena, m_rng)
     , m_resources(resources)
 {
@@ -35,12 +37,14 @@ void GameSession::restartMatch()
 {
     // 1. Reset player vital statistics, modifiers, position, alive flag
     m_player.reset(m_arena.center());
+    m_camera.setZoom(Camera::kDefaultZoom);
     m_camera.setCenter(m_player.position());
 
     // 2. Clear all active entities and missiles
     m_enemies.clear();
     m_combatSystem.clearProjectiles();
     m_expSystem.clear();
+    m_powerUpManager.reset();
     m_effects.clear();
 
     // 3. Reset progression systems and spawner
@@ -175,14 +179,16 @@ void GameSession::castSpell(sf::Vector2f targetPos)
         : math::fromAngle(m_player.aimAngle());
 
     const auto& profile = m_currentSpell->profile();
-    m_player.triggerCast(profile.cooldownMultiplier);
+    m_player.triggerCast(profile.cooldownMultiplier * m_powerUpManager.castCooldownMultiplier());
 
-    const float baseDamage = 35.f * profile.damageMultiplier * m_player.damageMultiplier();
+    const float damageBoost = m_powerUpManager.isElementalBurstActive() ? 1.35f : 1.0f;
+    const float baseDamage = 35.f * profile.damageMultiplier * m_player.damageMultiplier() * damageBoost;
     const float baseSpeed = 420.f * profile.speedMultiplier * m_player.projectileSpeedMultiplier();
-    const float baseRadius = profile.radius;
+    const float baseRadius = profile.radius + (m_powerUpManager.isElementalBurstActive() ? 3.0f : 0.0f);
     const float baseLifetime = profile.lifetime * m_player.projectileLifetimeMultiplier();
-    const int pierce = std::min(Projectile::kMaxAllowedPierce, profile.pierce + m_player.bonusPierce());
-    const int extra = profile.extraProjectiles;
+    const int pierce = std::min(Projectile::kMaxAllowedPierce,
+                                profile.pierce + m_player.bonusPierce() + m_powerUpManager.bonusPierce());
+    const int extra = profile.extraProjectiles + (m_powerUpManager.isElementalBurstActive() ? 1 : 0);
 
     if (extra == 0) {
         m_combatSystem.addProjectile(std::make_unique<Projectile>(
@@ -332,10 +338,29 @@ SessionEventResult GameSession::handleEvent(const sf::Event& event, sf::Vector2f
                 }
             }
             return SessionEventResult::Handled;
+        } else if (event.key.code == sf::Keyboard::Equal || event.key.code == sf::Keyboard::Add) {
+            m_camera.zoomBy(0.15f);
+            return SessionEventResult::Handled;
+        } else if (event.key.code == sf::Keyboard::Hyphen || event.key.code == sf::Keyboard::Subtract) {
+            m_camera.zoomBy(-0.15f);
+            return SessionEventResult::Handled;
+        } else if (event.key.code == sf::Keyboard::Num0) {
+            m_camera.resetZoom();
+            return SessionEventResult::Handled;
         }
     } else if (event.type == sf::Event::KeyReleased) {
         if (event.key.code == sf::Keyboard::V) {
             m_toggleKeyHeld = false;
+            return SessionEventResult::Handled;
+        }
+    } else if (event.type == sf::Event::MouseWheelScrolled) {
+        if (event.mouseWheelScroll.wheel == sf::Mouse::VerticalWheel) {
+            const float delta = event.mouseWheelScroll.delta;
+            if (delta > 0.f) {
+                m_camera.zoomBy(0.12f * delta);
+            } else if (delta < 0.f) {
+                m_camera.zoomBy(0.12f * delta);
+            }
             return SessionEventResult::Handled;
         }
     } else if (event.type == sf::Event::MouseButtonPressed) {
@@ -435,7 +460,7 @@ void GameSession::update(float dt, sf::Vector2f worldMousePos, bool autoplay,
     // Update enemies: AI navigation, bounds, contact damage, ranged attacks
     for (auto& enemy : m_enemies) {
         const sf::Vector2f oldEnemyPos = enemy->position();
-        enemy->updateAI(dt, m_player.position());
+        enemy->updateAI(dt, m_player.position(), &m_arena);
         const sf::Vector2f resolvedEnemyPos = m_arena.resolveCollision(oldEnemyPos, enemy->position(), enemy->radius());
         enemy->setPosition(resolvedEnemyPos);
         enemy->constrainToBounds(m_arena.bounds());
@@ -453,6 +478,17 @@ void GameSession::update(float dt, sf::Vector2f worldMousePos, bool autoplay,
                     m_effects.ring(ranged->position(), 15.f, sf::Color(215, 80, 245), 0.18f);
                     m_combatSystem.addProjectile(std::move(enemyProj));
                 }
+            }
+        }
+
+        // Boss enemy special volley attack
+        if (auto* boss = dynamic_cast<BossEnemy*>(enemy.get())) {
+            if (boss->canFireVolley() && m_player.isAlive()) {
+                auto bossProj = boss->fireVolley(m_player.position());
+                for (auto& p : bossProj) {
+                    m_combatSystem.addProjectile(std::move(p));
+                }
+                m_effects.ring(boss->position(), 45.f, sf::Color(255, 60, 40), 0.35f);
             }
         }
     }
@@ -480,6 +516,9 @@ void GameSession::update(float dt, sf::Vector2f worldMousePos, bool autoplay,
 
     // Update experience pickups
     m_expSystem.update(dt, m_player, m_progression, m_effects);
+
+    // Update power-up pickups & active temporary ability
+    m_powerUpManager.update(dt, m_player, m_effects);
 
     // Update visual particle effects
     m_effects.update(dt);
@@ -511,7 +550,7 @@ void GameSession::render(sf::RenderTarget& target, const sf::Font* font, const R
     target.setView(m_camera.view());
 
     // 2. Arena floor, runes, terrain, or tilemap
-    m_arena.draw(target, res);
+    m_arena.draw(target, res, &m_camera);
 
     // 3. Active Enemies
     for (const auto& enemy : m_enemies) {
@@ -524,7 +563,10 @@ void GameSession::render(sf::RenderTarget& target, const sf::Font* font, const R
     // 5. Experience Pickups
     m_expSystem.draw(target, res);
 
-    // 6. Player & Visual Effects
+    // 6. Power-Up Pickups
+    m_powerUpManager.drawWorld(target, m_camera);
+
+    // 7. Player & Visual Effects
     m_player.draw(target, res);
     m_effects.draw(target);
 
@@ -570,7 +612,7 @@ void GameSession::render(sf::RenderTarget& target, const sf::Font* font, const R
         instrText.setCharacterSize(14);
         instrText.setFillColor(sf::Color(170, 180, 200));
         instrText.setPosition(75.f, 630.f);
-        instrText.setString("WASD: Move | Left Click/Hold: Cast | V: Toggle Auto-Shot | 1-5: Elements | Space: Damage | H: Heal | L: +EXP");
+        instrText.setString("WASD: Move | Left Click/Hold: Cast | V: Toggle Auto-Shot | Scroll/+/-: Zoom | 1-5: Elements | Space: Dmg | H: Heal | L: +EXP");
         target.draw(instrText);
 
         // Health Bar
@@ -642,6 +684,9 @@ void GameSession::render(sf::RenderTarget& target, const sf::Font* font, const R
         modeText.setString(isAuto ? "SHOOTING: AUTO  [V]" : "SHOOTING: MANUAL  [V]");
         target.draw(modeText);
 
+        // Active Temporary Ability HUD Badge
+        m_powerUpManager.drawHUD(target, bodyFont, {75.f, 202.f});
+
         // Transient mode switch notification banner
         if (m_modeNotificationTimer > 0.f) {
             const float alphaFactor = std::clamp(m_modeNotificationTimer / 0.35f, 0.f, 1.f);
@@ -677,12 +722,79 @@ void GameSession::render(sf::RenderTarget& target, const sf::Font* font, const R
         }
     }
 
-    // 7. Level Up Modal (if open)
+    // 7. Active Boss Health Bar (Top Center Screen Space HUD)
+    const Enemy* activeBoss = nullptr;
+    for (const auto& enemy : m_enemies) {
+        if (enemy && enemy->isAlive() && enemy->isBoss()) {
+            activeBoss = enemy.get();
+            break;
+        }
+    }
+
+    if (activeBoss && bodyFont) {
+        const float viewW = target.getView().getSize().x;
+        const float barW = 560.f;
+        const float barH = 22.f;
+        const float barX = (viewW - barW) * 0.5f;
+        const float barY = 28.f;
+
+        // Boss Name Header above health bar
+        sf::Text bossNameText;
+        bossNameText.setFont(boldFont ? *boldFont : *bodyFont);
+        bossNameText.setCharacterSize(16);
+        bossNameText.setStyle(sf::Text::Bold);
+        bossNameText.setFillColor(sf::Color(255, 215, 60));
+        bossNameText.setString(activeBoss->name());
+        const sf::FloatRect bnBounds = bossNameText.getLocalBounds();
+        bossNameText.setOrigin(bnBounds.left + bnBounds.width * 0.5f, bnBounds.top);
+        bossNameText.setPosition(viewW * 0.5f, barY - 20.f);
+        target.draw(bossNameText);
+
+        // Health Bar Outer Frame
+        sf::RectangleShape barBg({barW, barH});
+        barBg.setPosition(barX, barY);
+        barBg.setFillColor(sf::Color(18, 20, 28, 235));
+        barBg.setOutlineColor(sf::Color(220, 50, 50));
+        barBg.setOutlineThickness(2.2f);
+        target.draw(barBg);
+
+        // Health Bar Fill
+        const float fillRatio = std::clamp(activeBoss->healthRatio(), 0.f, 1.f);
+        if (fillRatio > 0.f) {
+            sf::RectangleShape barFill({barW * fillRatio, barH});
+            barFill.setPosition(barX, barY);
+            barFill.setFillColor(sf::Color(220, 40, 50));
+            target.draw(barFill);
+
+            // Shading highlight strip on upper half
+            sf::RectangleShape highlight({barW * fillRatio, barH * 0.45f});
+            highlight.setPosition(barX, barY);
+            highlight.setFillColor(sf::Color(255, 120, 120, 110));
+            target.draw(highlight);
+        }
+
+        // Numerical HP details centered inside bar
+        sf::Text hpText;
+        hpText.setFont(*bodyFont);
+        hpText.setCharacterSize(13);
+        hpText.setStyle(sf::Text::Bold);
+        hpText.setFillColor(sf::Color::White);
+        const int curHp = static_cast<int>(std::ceil(activeBoss->health()));
+        const int maxHp = static_cast<int>(activeBoss->maxHealth());
+        const int pct = static_cast<int>(fillRatio * 100.f);
+        hpText.setString(std::to_string(curHp) + " / " + std::to_string(maxHp) + " (" + std::to_string(pct) + "%)");
+        const sf::FloatRect hpBounds = hpText.getLocalBounds();
+        hpText.setOrigin(hpBounds.left + hpBounds.width * 0.5f, hpBounds.top + hpBounds.height * 0.5f);
+        hpText.setPosition(viewW * 0.5f, barY + barH * 0.5f);
+        target.draw(hpText);
+    }
+
+    // 8. Level Up Modal (if open)
     if (m_levelUpOverlay.isOpen()) {
         m_levelUpOverlay.draw(target, bodyFont, res);
     }
 
-    // 8. Game Over Screen Modal (if open)
+    // 9. Game Over Screen Modal (if open)
     if (m_gameOverOverlay.isOpen()) {
         m_gameOverOverlay.draw(target, bodyFont, res);
     }

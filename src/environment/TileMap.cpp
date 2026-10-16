@@ -233,26 +233,65 @@ void TileMap::placeRiver(unsigned int seed)
         const float riverCenter = 42.0f + std::sin(fy * 0.08f) * 7.5f + std::cos(fy * 0.16f) * 3.0f;
         const int rc = static_cast<int>(std::round(riverCenter));
 
-        // Water channel (3-4 tiles wide)
+        // Water channel (4 tiles wide: rc - 2 to rc + 1)
         for (int dx = -2; dx <= 1; ++dx) {
             const int tx = rc + dx;
             setTile(tx, y, TileType::Water);
         }
 
-        // Sandy riverbanks
-        if (tileAt(rc - 3, y) != TileType::Water) setTile(rc - 3, y, TileType::Sand);
-        if (tileAt(rc + 2, y) != TileType::Water) setTile(rc + 2, y, TileType::Sand);
+        // Sandy riverbanks (2 tiles on each side for smooth, gentle terrain transition)
+        for (int d = 1; d <= 2; ++d) {
+            if (tileAt(rc - 2 - d, y) != TileType::Water) setTile(rc - 2 - d, y, TileType::Sand);
+            if (tileAt(rc + 1 + d, y) != TileType::Water) setTile(rc + 1 + d, y, TileType::Sand);
+        }
     }
 }
 
 void TileMap::placePaths()
 {
-    // 1. Main East-West Highway across entire world at y = 63..65
+    // Helper lambda to construct a complete, valid wooden river bridge crossing
+    // with connecting flared dirt approach paths on both riverbanks
+    auto buildRiverBridge = [this](int startY, int endY) {
+        int minWaterX = 999;
+        int maxWaterX = -1;
+        for (int y = startY; y <= endY; ++y) {
+            for (int x = 20; x <= 65; ++x) {
+                if (isWaterTile(x, y) || tileAt(x, y) == TileType::Sand) {
+                    minWaterX = std::min(minWaterX, x);
+                    maxWaterX = std::max(maxWaterX, x);
+                }
+            }
+        }
+        if (minWaterX <= maxWaterX && minWaterX >= 0) {
+            // Bridge spans the full rectangular channel
+            for (int y = startY; y <= endY; ++y) {
+                for (int x = minWaterX; x <= maxWaterX; ++x) {
+                    setTile(x, y, TileType::BridgeH);
+                }
+            }
+            // Flared dirt approach landings on both riverbanks (startY - 1 to endY + 1)
+            // extending 4 tiles inland, ensuring no sharp water notches or dead-end pockets
+            for (int y = startY - 1; y <= endY + 1; ++y) {
+                if (y < 0 || y >= kHeight) continue;
+                for (int d = 1; d <= 4; ++d) {
+                    const int westX = minWaterX - d;
+                    const int eastX = maxWaterX + d;
+                    if (westX >= 0) {
+                        setTile(westX, y, TileType::Dirt);
+                    }
+                    if (eastX < kWidth) {
+                        setTile(eastX, y, TileType::Dirt);
+                    }
+                }
+            }
+        }
+    };
+
+    // 1. Main East-West Highway across entire world at y = 62..66 (5 tiles wide)
     for (int x = 0; x < kWidth; ++x) {
-        for (int dy = -1; dy <= 1; ++dy) {
+        for (int dy = -2; dy <= 2; ++dy) {
             const int y = 64 + dy;
             if (isWaterTile(x, y)) {
-                // Wooden bridge across river
                 setTile(x, y, TileType::BridgeH);
             } else {
                 setTile(x, y, TileType::Dirt);
@@ -286,13 +325,18 @@ void TileMap::placePaths()
         setTile(px + 1, y, TileType::Dirt);
     }
 
-    // 5. Northern Bridge Crossing at y = 28
-    for (int x = 30; x <= 50; ++x) {
-        if (isWaterTile(x, 28) || isWaterTile(x, 29)) {
-            setTile(x, 28, TileType::BridgeH);
-            setTile(x, 29, TileType::BridgeH);
-        }
-    }
+    // 5. Build distributed 5-tile-wide river bridge network across the entire world:
+    // Large enough to comfortably accommodate the colossal Boss (r=50) and ordinary enemies
+    // - Far North Crossing (y = 11..15, 5 tiles wide)
+    buildRiverBridge(11, 15);
+    // - Northern Crossing (y = 28..32, 5 tiles wide)
+    buildRiverBridge(28, 32);
+    // - Central Highway Crossing (y = 62..66, 5 tiles wide)
+    buildRiverBridge(62, 66);
+    // - Southern Crossing (y = 85..89, 5 tiles wide)
+    buildRiverBridge(85, 89);
+    // - Far South Crossing (y = 109..113, 5 tiles wide)
+    buildRiverBridge(109, 113);
 }
 
 void TileMap::placeRuinsAndCamps()
@@ -344,8 +388,12 @@ void TileMap::placeNaturalDecorations(unsigned int seed)
     const float centerWorldY = 64.f * kTileSize;
     const float safeRadiusSq = (12.f * kTileSize) * (12.f * kTileSize);
 
-    // Distribute trees, rocks, bushes, logs
-    for (int i = 0; i < 480; ++i) {
+    // Track placed solid obstacles to prevent clumping and choking choke-points
+    std::vector<sf::Vector2f> placedSolids;
+    placedSolids.reserve(200);
+
+    // Reduced candidate count (from 480 down to 290, ~40% reduction)
+    for (int i = 0; i < 290; ++i) {
         const int tx = static_cast<int>(rng.range(3, kWidth - 4));
         const int ty = static_cast<int>(rng.range(3, kHeight - 4));
         const TileType t = tileAt(tx, ty);
@@ -360,19 +408,53 @@ void TileMap::placeNaturalDecorations(unsigned int seed)
             continue; // Keep player starting arena open and traversable
         }
 
+        // Keep 4 tiles clear around any river bridge to ensure unblocked river crossing access
+        bool nearBridge = false;
+        for (int bdy = -4; bdy <= 4 && !nearBridge; ++bdy) {
+            for (int bdx = -4; bdx <= 4; ++bdx) {
+                if (isBridgeTile(tx + bdx, ty + bdy)) {
+                    nearBridge = true;
+                    break;
+                }
+            }
+        }
+        if (nearBridge) {
+            continue;
+        }
+
         const float roll = rng.range(0.f, 1.f);
-        if (roll < 0.40f) {
-            addDecoration(DecoType::TreeOak, worldPos, true);
-        } else if (roll < 0.65f) {
-            addDecoration(DecoType::TreePine, worldPos, true);
-        } else if (roll < 0.78f) {
-            addDecoration(DecoType::Rock, worldPos, true);
-        } else if (roll < 0.85f) {
-            addDecoration(DecoType::RockLarge, worldPos, true);
-        } else if (roll < 0.94f) {
+        // Balanced distribution: 40% passable decorative flora (bushes & logs),
+        // 60% solid obstacles with anti-clumping spacing
+        if (roll < 0.25f) { // Passable bush
             addDecoration(DecoType::Bush, worldPos, false);
-        } else {
+        } else if (roll < 0.40f) { // Passable fallen log
             addDecoration(DecoType::Log, worldPos, false);
+        } else {
+            // Solid obstacle: verify minimum spacing from previously placed solid obstacles (>= 44 units)
+            bool tooClose = false;
+            for (const auto& existing : placedSolids) {
+                if (math::distanceSq(worldPos, existing) < (44.f * 44.f)) {
+                    tooClose = true;
+                    break;
+                }
+            }
+            if (tooClose) {
+                // Turn into passable bush rather than leaving dead space or causing a collision trap
+                addDecoration(DecoType::Bush, worldPos, false);
+                continue;
+            }
+
+            placedSolids.push_back(worldPos);
+            const float solidRoll = rng.range(0.f, 1.f);
+            if (solidRoll < 0.45f) {
+                addDecoration(DecoType::TreeOak, worldPos, true);
+            } else if (solidRoll < 0.75f) {
+                addDecoration(DecoType::TreePine, worldPos, true);
+            } else if (solidRoll < 0.90f) {
+                addDecoration(DecoType::Rock, worldPos, true);
+            } else {
+                addDecoration(DecoType::RockLarge, worldPos, true);
+            }
         }
     }
 }
@@ -380,10 +462,10 @@ void TileMap::placeNaturalDecorations(unsigned int seed)
 void TileMap::drawTerrain(sf::RenderTarget& target, const ResourceManager* resources, const Camera& camera) const
 {
     const sf::FloatRect vis = camera.visibleBounds();
-    const int minTx = std::max(0, static_cast<int>(std::floor(vis.left / kTileSize)));
-    const int maxTx = std::min(kWidth - 1, static_cast<int>(std::ceil((vis.left + vis.width) / kTileSize)));
-    const int minTy = std::max(0, static_cast<int>(std::floor(vis.top / kTileSize)));
-    const int maxTy = std::min(kHeight - 1, static_cast<int>(std::ceil((vis.top + vis.height) / kTileSize)));
+    const int minTx = std::max(0, static_cast<int>(std::floor(vis.left / kTileSize)) - 2);
+    const int maxTx = std::min(kWidth - 1, static_cast<int>(std::ceil((vis.left + vis.width) / kTileSize)) + 2);
+    const int minTy = std::max(0, static_cast<int>(std::floor(vis.top / kTileSize)) - 2);
+    const int maxTy = std::min(kHeight - 1, static_cast<int>(std::ceil((vis.top + vis.height) / kTileSize)) + 2);
 
     // Reusable sprite for rendering tiles
     sf::Sprite sprite;

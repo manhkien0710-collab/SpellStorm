@@ -14,21 +14,14 @@ MeleeEnemy::MeleeEnemy(sf::Vector2f position)
 {
 }
 
-void MeleeEnemy::updateAI(float dt, sf::Vector2f targetPos)
+void MeleeEnemy::updateAI(float dt, sf::Vector2f targetPos, const Arena* arena)
 {
     if (!isAlive()) {
         return;
     }
 
     m_animTimer += dt;
-    const sf::Vector2f diff = targetPos - position();
-    const float distSq = math::lengthSq(diff);
-
-    // Safe handling: avoid division by zero or NaN if overlapping
-    if (distSq > 1e-4f) {
-        const sf::Vector2f dir = math::normalize(diff);
-        moveInDirection(dir, 1.f, dt);
-    }
+    steerWithNavigation(dt, targetPos, arena, 1.0f);
 }
 
 void MeleeEnemy::draw(sf::RenderTarget& target) const
