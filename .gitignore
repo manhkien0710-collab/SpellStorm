@@ -1,48 +1,44 @@
-# Build output
+# Gradle build outputs & wrapper caches
+.gradle/
 build/
-Build/
-build-*/
-cmake-build-*/
-out/
+!gradle/wrapper/gradle-wrapper.jar
 
-# CMake generated files
-CMakeFiles/
-CMakeCache.txt
-cmake_install.cmake
-Makefile
-install_manifest.txt
-compile_commands.json
-
-# Compiled object / library / executable files
-*.o
-*.obj
+# Runtime extracted natives & temporary OS libs
+.lwjgl/
 *.so
-*.dylib
 *.dll
-*.a
-*.lib
-*.exe
-*.out
-*.app
-*.pdb
-*.ilk
-*.d
-*.gch
-*.pch
+*.dylib
 
-# Package managers & caches
-vcpkg_installed/
-.cache/
-Testing/
+# Java / JVM / IDE artifacts
+*.class
+out/
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+hs_err_pid*.log
+replay_pid*.log
 
-# Runtime artifacts
-screenshots/
+# Python caches & virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+
+# Local secrets & machine-specific overrides
+.env
+.env.*
+*.pem
+*.key
+gradle-local.properties
+
+# Ephemeral agent worklogs, local backups & OS files
+.agents/
+docs/backups/
 *.log
 *.tmp
-*.bak
-
-# Editor / OS files
-.vscode/
-.idea/
-*.swp
 .DS_Store
+Thumbs.db

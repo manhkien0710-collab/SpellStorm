@@ -1,0 +1,107 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+group = 'com.spellstorm'
+version = '1.0.0'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 21
+}
+
+application {
+    mainClass = 'com.spellstorm.desktop.DesktopLauncher'
+}
+
+repositories {
+    mavenCentral()
+    maven { url 'https://s01.oss.sonatype.org/content/repositories/snapshots/' }
+    maven { url 'https://oss.sonatype.org/content/repositories/snapshots/' }
+}
+
+dependencies {
+    // LibGDX Core and LWJGL3 Desktop Backend
+    implementation "com.badlogicgames.gdx:gdx:$gdxVersion"
+    implementation "com.badlogicgames.gdx:gdx-backend-lwjgl3:$gdxVersion"
+    implementation "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-desktop"
+
+    // LibGDX FreeType Font Generation and Natives
+    implementation "com.badlogicgames.gdx:gdx-freetype:$gdxVersion"
+    implementation "com.badlogicgames.gdx:gdx-freetype-platform:$gdxVersion:natives-desktop"
+
+    // Headless Backend for JUnit 5 CI / Headless Tests
+    testImplementation "com.badlogicgames.gdx:gdx-backend-headless:$gdxVersion"
+    testImplementation "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-desktop"
+    testImplementation "com.badlogicgames.gdx:gdx-freetype-platform:$gdxVersion:natives-desktop"
+
+    // JUnit 5 Jupiter Engine & Platform
+    testImplementation platform("org.junit:junit-bom:$junitVersion")
+    testImplementation "org.junit.jupiter:junit-jupiter"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+sourceSets {
+    main {
+        resources {
+            srcDirs = ['src/main/resources', 'assets']
+        }
+    }
+}
+
+run {
+    workingDir = rootProject.projectDir
+    ignoreExitValue = true
+
+    // macOS LWJGL3 thread requirement
+    if (org.gradle.internal.os.OperatingSystem.current().isMacOsX()) {
+        jvmArgs += '-XstartOnFirstThread'
+    }
+}
+
+test {
+    useJUnitPlatform()
+    workingDir = rootProject.projectDir
+    systemProperty "spellstorm.assets.dir", file("assets").absolutePath
+
+    testLogging {
+        events "passed", "skipped", "failed"
+        exceptionFormat "full"
+        showStandardStreams = true
+    }
+}
+
+// Standalone Executable Fat JAR task
+task fatJar(type: Jar) {
+    archiveBaseName = 'SpellStorm'
+    archiveClassifier = 'all'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    manifest {
+        attributes(
+            'Main-Class': 'com.spellstorm.desktop.DesktopLauncher',
+            'Implementation-Title': 'Spell Storm',
+            'Implementation-Version': project.version
+        )
+    }
+
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    from('assets') {
+        into('assets')
+    }
+    with jar
+}
+
+// Automatically produce standalone executable fat JAR during standard assemble/build lifecycle
+assemble.dependsOn fatJar

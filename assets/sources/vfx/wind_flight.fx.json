@@ -1,0 +1,184 @@
+{
+  "format": "pixelforge-fx",
+  "version": 1,
+  "name": "spell_wind_flight",
+  "width": 24,
+  "height": 24,
+  "anchor": [
+    15,
+    12
+  ],
+  "palette": {
+    "d": "#134d3b",
+    "g": "#2ca86d",
+    "m": "#7bf2a8",
+    "w": "#f0fff4"
+  },
+  "symbols": {
+    "wisp-big": [
+      "mw",
+      "gm"
+    ],
+    "wisp": [
+      "m"
+    ],
+    "wisp-dim": [
+      "g"
+    ]
+  },
+  "effects": {
+    "flight": {
+      "frames": 6,
+      "duration": 65,
+      "loop": true,
+      "seed": 301,
+      "cleanup": {
+        "corners": true,
+        "strays": true
+      },
+      "looks": {
+        "gale": {
+          "colors": [
+            "d",
+            "g",
+            "m",
+            "w"
+          ],
+          "thresholds": [
+            0.14,
+            0.36,
+            0.64,
+            0.88
+          ],
+          "hold": 0.16
+        }
+      },
+      "layers": [
+        {
+          "kind": "beam",
+          "look": "gale",
+          "at": [
+            15.5,
+            12
+          ],
+          "to": [
+            2.6,
+            12
+          ],
+          "width": 3.4,
+          "fade": 0.9,
+          "wobble": 0.75,
+          "wavelength": 5,
+          "waves": 2,
+          "noise": 0.4,
+          "scale": 2,
+          "power": 1.15
+        },
+        {
+          "kind": "beam",
+          "look": "gale",
+          "at": [
+            13.8,
+            8.6
+          ],
+          "to": [
+            3.2,
+            7.6
+          ],
+          "width": 2.0,
+          "fade": 0.95,
+          "wobble": 0.85,
+          "wavelength": 5,
+          "waves": 1,
+          "noise": 0.45,
+          "scale": 2,
+          "power": 1.0
+        },
+        {
+          "kind": "beam",
+          "look": "gale",
+          "at": [
+            13.8,
+            15.4
+          ],
+          "to": [
+            3.2,
+            16.4
+          ],
+          "width": 2.0,
+          "fade": 0.95,
+          "wobble": 0.85,
+          "wavelength": 5,
+          "waves": 1,
+          "noise": 0.45,
+          "scale": 2,
+          "power": 1.0
+        },
+        {
+          "kind": "slash",
+          "look": "gale",
+          "at": [
+            10.0,
+            12
+          ],
+          "radius": 8.6,
+          "arc": [
+            -58,
+            58
+          ],
+          "width": 3.0,
+          "reveal": 0,
+          "power": 1.35
+        },
+        {
+          "kind": "slash",
+          "look": "gale",
+          "at": [
+            10.8,
+            12
+          ],
+          "radius": 8.0,
+          "arc": [
+            -42,
+            42
+          ],
+          "width": 1.6,
+          "reveal": 0,
+          "power": 1.5
+        }
+      ],
+      "emitters": [
+        {
+          "name": "mist",
+          "at": [
+            8.5,
+            12
+          ],
+          "area": [
+            7,
+            8
+          ],
+          "rate": 0.85,
+          "angle": [
+            155,
+            205
+          ],
+          "speed": [
+            0.7,
+            1.4
+          ],
+          "drag": 0.05,
+          "life": [
+            4,
+            5
+          ],
+          "shapes": [
+            "wisp-big",
+            "wisp",
+            "wisp-dim"
+          ]
+        }
+      ]
+    }
+  }
+}

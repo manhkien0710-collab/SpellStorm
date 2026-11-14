@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "name": "grass",
+  "canvas": [
+    32,
+    32
+  ],
+  "pivot": [
+    16,
+    16
+  ],
+  "palette": {
+    "D": "#163020",
+    "s": "#224d2c",
+    "g": "#347539",
+    "l": "#52a349",
+    "h": "#82cf63"
+  },
+  "frames": [
+    {
+      "name": "grass",
+      "duration_ms": 100,
+      "rows": [
+        "ggggggggggggggggggggggggggssgggg",
+        "ggggggggggggggggggggggggggggglgg",
+        "ggggggggggggggggggggggggggggsggg",
+        "ggggggggggglgglggggggggggggggggg",
+        "gglggggggglllglgggglgggggggggggg",
+        "gglsggggggglllhgglgsgggggggggggg",
+        "gggggggggggggglgllgggggggggggggg",
+        "ggggggggggggggslslgggggggggggglg",
+        "gggggggggggggggssgggggggggggglgg",
+        "gggggggggggggggggggggggggggggsgg",
+        "gggggsssgggggggglggglggggggggggg",
+        "ggggssssgsggggggsggllglggggggggg",
+        "gggssssssggggggggggsgssggggggggg",
+        "ggggsssggggggggggggggggggggggggg",
+        "ggggggggggggglgggggggggggggggggg",
+        "ggggggggggggslggggggggggggglgggg",
+        "ggggggggggggggggggggglgggglllggg",
+        "gggggggggggggggggggggsgggllgllhg",
+        "gggggggggggggggggggggggggggllglg",
+        "gggggggggggggggggggggggggggsllsg",
+        "gggggggggggggggggssgggggggggssgg",
+        "gggggggggggggggssssssggggggggggg",
+        "ggglglggggggggsssgssgggggggggggg",
+        "gglllgggggggggggssgggggggggggggg",
+        "ggglllglgggggggggggggggggggggggg",
+        "ggggglllgggggggggggggggggggggggg",
+        "gggggslslggggggggggggggggggggggg",
+        "ggggggDsglggggggggggglgggggggggg",
+        "gggggggglgggggggggggglggggssggsg",
+        "ggggggggsggggggggggggggggssssssg",
+        "ggggggggggggggggggggggggssssgssg",
+        "gggggggggggggggggggggggggsssssgg"
+      ]
+    }
+  ]
+}

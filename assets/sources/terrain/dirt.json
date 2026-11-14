@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "name": "dirt",
+  "canvas": [
+    32,
+    32
+  ],
+  "pivot": [
+    16,
+    16
+  ],
+  "palette": {
+    "D": "#382419",
+    "s": "#543826",
+    "d": "#785238",
+    "l": "#9c6f4f",
+    "h": "#bf926b"
+  },
+  "frames": [
+    {
+      "name": "dirt",
+      "duration_ms": 100,
+      "rows": [
+        "dddddddddddddddddddddddddddddddd",
+        "ddddssdsdddddddddddddddddddddddd",
+        "dddssssssddddddddddddddddddddddd",
+        "ddsssdssssddddddlldllddddddddddd",
+        "ddddssssdsdddddllllllldddddddddd",
+        "dddddssdddddddddllldlldddddddddd",
+        "dddddddddddddddddllddddddddddddd",
+        "dddddddddddddddddddddddddddddddd",
+        "ddddddddddhlddddddddddssdsdddddd",
+        "ddddddddddlsdddddddddddddddddddd",
+        "dddddddddddDdldddddddddddddddddd",
+        "dddddddddddddsdddddsssdddddddddd",
+        "ddddddddddddddddddssssdssddddddd",
+        "dddddddddddddddddsssssssdhlldddd",
+        "ddddllddldddddddddsssssddlsDdddd",
+        "dddllllllddddddddddssddsdddssdsd",
+        "ddllldlllddssdsddddddddddddddddd",
+        "dddllldddddddddddddddddddddddddd",
+        "dddddddddddddddddddddddddddddddd",
+        "ddddddddddddddddddddddlldldddddd",
+        "dddddddddddddddddddddllllllddddd",
+        "ddddddddddddddddddddddlldllldddd",
+        "dddddddddssdsddddhlddddllddddddd",
+        "dddddddssssssdddhlDddddddddddddd",
+        "ddddddsssdsssdddsDdddddddddddddd",
+        "ddddddddssssdddddddddddddddddddd",
+        "ddddssdsdddddddddddddddddddddddd",
+        "dddddddddddddddllldddddddddddddd",
+        "ddddddddddddddlldllldddddddssdds",
+        "ddddhldddddddddlllldddddddssssss",
+        "ddddsDdddddddddddddssdsddddsssds",
+        "ddddddddddddddddddddddddddddssdd"
+      ]
+    }
+  ]
+}

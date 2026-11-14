@@ -1,0 +1,220 @@
+{
+  "format": "pixelforge-fx",
+  "version": 1,
+  "name": "vfx_arcane_impact",
+  "width": 32,
+  "height": 32,
+  "anchor": [
+    16,
+    16
+  ],
+  "palette": {
+    "n": "#243b7a",
+    "b": "#33b5e5",
+    "c": "#8ff5ff",
+    "W": "#ffffff"
+  },
+  "symbols": {
+    "rune-lg": [
+      ".c.",
+      "cWc",
+      ".c."
+    ],
+    "rune-md": [
+      "cW",
+      "bc"
+    ],
+    "rune-sm": [
+      "b"
+    ]
+  },
+  "effects": {
+    "impact": {
+      "frames": 6,
+      "duration": {
+        "from": 45,
+        "to": 90,
+        "ease": "in"
+      },
+      "seed": 1101,
+      "cleanup": {
+        "corners": true,
+        "strays": true
+      },
+      "looks": {
+        "nova": {
+          "colors": [
+            "n",
+            "b",
+            "c",
+            "W"
+          ],
+          "thresholds": [
+            0.08,
+            0.28,
+            0.56,
+            0.86
+          ],
+          "hold": 0.16
+        }
+      },
+      "layers": [
+        {
+          "kind": "star",
+          "look": "nova",
+          "at": [
+            16,
+            16
+          ],
+          "frames": [
+            0,
+            2
+          ],
+          "points": 4,
+          "angle": 0,
+          "radius": [
+            8.5,
+            14.0
+          ],
+          "ratio": 0.32,
+          "width": [
+            2.6,
+            2.0
+          ],
+          "core": 2.8,
+          "power": [
+            1.5,
+            1.05
+          ],
+          "cue": "hit"
+        },
+        {
+          "kind": "star",
+          "look": "nova",
+          "at": [
+            16,
+            16
+          ],
+          "frames": [
+            0,
+            2
+          ],
+          "points": 4,
+          "angle": 45,
+          "radius": [
+            7.5,
+            12.2
+          ],
+          "ratio": 0.3,
+          "width": [
+            2.4,
+            1.6
+          ],
+          "core": 1.8,
+          "power": [
+            1.45,
+            0.95
+          ]
+        },
+        {
+          "kind": "ring",
+          "look": "nova",
+          "at": [
+            16,
+            16
+          ],
+          "frames": [
+            0,
+            3
+          ],
+          "radius": [
+            4,
+            13.8
+          ],
+          "width": [
+            3.6,
+            2.4,
+            1.4
+          ],
+          "noise": 0.5,
+          "scale": 3,
+          "power": [
+            1.4,
+            0.95,
+            0.4
+          ],
+          "ease": "out"
+        },
+        {
+          "kind": "ring",
+          "look": "nova",
+          "at": [
+            16,
+            16
+          ],
+          "frames": [
+            2,
+            5
+          ],
+          "radius": [
+            7.0,
+            13.6
+          ],
+          "width": [
+            2.6,
+            1.8,
+            1.2
+          ],
+          "noise": 0.78,
+          "scale": 3,
+          "power": [
+            1.05,
+            0.65,
+            0.35
+          ],
+          "ease": "out"
+        }
+      ],
+      "emitters": [
+        {
+          "name": "sparkling_runes",
+          "at": [
+            16,
+            16
+          ],
+          "ring": {
+            "radius": 4.0
+          },
+          "burst": 16,
+          "start": 0,
+          "angle": [
+            0,
+            360
+          ],
+          "speed": [
+            1.2,
+            2.6
+          ],
+          "drag": 0.14,
+          "life": [
+            5,
+            6
+          ],
+          "shapes": [
+            "rune-lg",
+            "rune-md",
+            "rune-sm"
+          ],
+          "attract": {
+            "at": [
+              16,
+              16
+            ],
+            "strength": 0.18,
+            "swirl": 2.0
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "name": "bridge_h",
+  "canvas": [
+    32,
+    32
+  ],
+  "pivot": [
+    16,
+    16
+  ],
+  "palette": {
+    "o": "#14101a",
+    "d": "#142a4f",
+    "u": "#1d4375",
+    "w": "#285e99",
+    "k": "#2b1a14",
+    "s": "#472b1e",
+    "b": "#6e442c",
+    "l": "#99633f",
+    "h": "#bf926b",
+    "m": "#3e4556",
+    "i": "#5a657a",
+    "I": "#aebdcf"
+  },
+  "frames": [
+    {
+      "name": "bridge_h",
+      "duration_ms": 100,
+      "rows": [
+        "uuwwwuwuuwwwuwuuwwwuwuuwwwuwuuww",
+        "oooooooooooooooooooooooooooooooo",
+        "hhlIihhhlhhhhhlIihhhlhhhhhlIihhh",
+        "bbbimbbbbbbbbbbimbbbbbbbbbbimbbb",
+        "ssssssssssssssssssssssssssssssss",
+        "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
+        "ksssskkssssskksssskkssssskkssssk",
+        "klbbbsklbbbbsklbbbsklbbbbsklbbbs",
+        "klbmbsklbbmbsklbmbsklbbmbsklbmbs",
+        "khbbbskhbbbbskhbsbskhbbsbskhbbbs",
+        "khbsbskhbbbbskhbsbskhbbsbskhbbbs",
+        "klbkbsklbbbbsklbbbsklbbsbsklbsbs",
+        "klbsbsklbbbbsklbbbsklbbbbsklbkbs",
+        "klbsbsklbsbbsklbbbsklbbbbsklbsbs",
+        "klbbbsklbkbbsklbbbsklbbbbsklbsbs",
+        "klbbbsklbsbbsklbbbsklbbbbsklbsbs",
+        "klbbbsklbsbbsklbbbsklbsbbsklbbbs",
+        "khbbbskhbsbbskhbbbskhbkbbskhbbbs",
+        "khbbbskhbbbbskhsbbskhbsbbskhbbbs",
+        "klbbssklbbbbsklkbbsklbsbbsklbbbs",
+        "klbbksklbbbbsklsbbsklbbbbsklsbbs",
+        "klbbssklbbsbsklsbbsklbbbbsklsbbs",
+        "klbbssklbbsbsklbbbsklbbbbsklsbbs",
+        "khbbbskhbbsbskhbbbskhbbbbskhbbbs",
+        "klbmbsklbbmbsklbmbsklbbmbsklbmbs",
+        "klbbbsklbbbbsklbbbsklbbbbsklbbbs",
+        "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
+        "hhhIihhhlhhhhlhIihlhhhhlhhhIihhh",
+        "bbbimbbbbbbbbbbimbbbbbbbbbbimbbb",
+        "oooooooooooooooooooooooooooooooo",
+        "dddddddddddddddddddddddddddddddd",
+        "dddudddudddudddudddudddudddudddu"
+      ]
+    }
+  ]
+}

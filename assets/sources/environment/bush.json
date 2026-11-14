@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "name": "bush",
+  "canvas": [
+    20,
+    20
+  ],
+  "pivot": [
+    10,
+    20
+  ],
+  "palette": {
+    "o": "#14101a",
+    "v": "#163020",
+    "d": "#224d2c",
+    "g": "#347539",
+    "l": "#52a349",
+    "h": "#82cf63",
+    "H": "#b8ed87",
+    "r": "#bf2633",
+    "b": "#f25244",
+    "y": "#ffe066"
+  },
+  "frames": [
+    {
+      "name": "bush",
+      "duration_ms": 100,
+      "rows": [
+        "....................",
+        "....................",
+        "......ooooooo.......",
+        "....ooHHhhllgoo.....",
+        "...oHhlllllllggo....",
+        "..oHhlllybllllggo...",
+        "..oHllggbrggggddo...",
+        ".oohllggdgggddgdvo..",
+        "oHHhllggllhhllgdggo.",
+        "oHlllggllhlllybggdo.",
+        "ollllgglgggggdrgddo.",
+        "olgyblgggggdggggddo.",
+        "oggbrggddgggggdgddo.",
+        ".ogdddgglhllgddgddo.",
+        ".ovgddgllhllgddggvo.",
+        "..ovgddgbybggddvvo..",
+        "..ovvvddgrgddvvvvo..",
+        "...oovvvvvvvvvvoo...",
+        "....oooooooooooo....",
+        "...................."
+      ]
+    }
+  ]
+}

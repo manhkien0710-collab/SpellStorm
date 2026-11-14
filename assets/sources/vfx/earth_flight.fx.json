@@ -1,0 +1,177 @@
+{
+  "format": "pixelforge-fx",
+  "version": 1,
+  "name": "spell_earth_flight",
+  "width": 24,
+  "height": 24,
+  "anchor": [
+    15,
+    12
+  ],
+  "palette": {
+    "k": "#14101a",
+    "u": "#361f18",
+    "b": "#6e4427",
+    "s": "#b87d3b",
+    "a": "#f5d996",
+    "W": "#fff7d6"
+  },
+  "symbols": {
+    "rock-chip": [
+      "bs",
+      "ub"
+    ],
+    "rock-speck": [
+      "b"
+    ],
+    "ember-crag": [
+      "aW"
+    ],
+    "pebble": [
+      "su"
+    ]
+  },
+  "effects": {
+    "flight": {
+      "frames": 6,
+      "duration": 70,
+      "loop": true,
+      "seed": 401,
+      "cleanup": {
+        "corners": true,
+        "strays": true
+      },
+      "looks": {
+        "magma": {
+          "colors": [
+            "u",
+            "b",
+            "s",
+            "a",
+            "W"
+          ],
+          "thresholds": [
+            0.14,
+            0.34,
+            0.56,
+            0.78,
+            0.94
+          ],
+          "hold": 0.16
+        }
+      },
+      "layers": [
+        {
+          "kind": "beam",
+          "look": "magma",
+          "at": [
+            14.2,
+            12
+          ],
+          "to": [
+            2.8,
+            12
+          ],
+          "width": 5.8,
+          "fade": 0.88,
+          "wobble": 0.3,
+          "wavelength": 5,
+          "waves": 2,
+          "noise": 0.5,
+          "scale": 2,
+          "power": 1.25
+        },
+        {
+          "kind": "beam",
+          "look": "magma",
+          "at": [
+            13.2,
+            9.6
+          ],
+          "to": [
+            4.2,
+            8.6
+          ],
+          "width": 2.2,
+          "fade": 0.95,
+          "wobble": 0.35,
+          "wavelength": 5,
+          "waves": 1,
+          "noise": 0.45,
+          "scale": 2,
+          "power": 0.95
+        },
+        {
+          "kind": "beam",
+          "look": "magma",
+          "at": [
+            13.2,
+            14.4
+          ],
+          "to": [
+            4.2,
+            15.4
+          ],
+          "width": 2.2,
+          "fade": 0.95,
+          "wobble": 0.35,
+          "wavelength": 5,
+          "waves": 1,
+          "noise": 0.45,
+          "scale": 2,
+          "power": 0.95
+        },
+        {
+          "kind": "burst",
+          "look": "magma",
+          "at": [
+            15,
+            12
+          ],
+          "radius": 5.6,
+          "noise": 0.45,
+          "scale": 2,
+          "boil": 4,
+          "power": 1.15
+        }
+      ],
+      "emitters": [
+        {
+          "name": "splinters",
+          "at": [
+            12,
+            12
+          ],
+          "ring": {
+            "radius": 5.6,
+            "arc": [
+              100,
+              260
+            ]
+          },
+          "rate": 1.0,
+          "angle": [
+            145,
+            215
+          ],
+          "speed": [
+            0.6,
+            1.4
+          ],
+          "drag": 0.05,
+          "life": [
+            4,
+            5
+          ],
+          "shapes": [
+            "rock-chip",
+            "pebble",
+            "ember-crag",
+            "rock-speck"
+          ],
+          "spin": 45
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,332 @@
+{
+  "format": "pixelforge-fx",
+  "version": 1,
+  "name": "vfx_lightning_impact",
+  "width": 32,
+  "height": 32,
+  "anchor": [
+    16,
+    16
+  ],
+  "palette": {
+    "p": "#4b2382",
+    "v": "#8e4fe0",
+    "V": "#c884ff",
+    "y": "#ffe954",
+    "W": "#ffffff"
+  },
+  "symbols": {
+    "spark-big": [
+      "VW",
+      "yV"
+    ],
+    "spark": [
+      "y"
+    ],
+    "spark-v": [
+      "V"
+    ],
+    "spark-dim": [
+      "p"
+    ]
+  },
+  "effects": {
+    "impact": {
+      "frames": 6,
+      "duration": {
+        "from": 45,
+        "to": 90,
+        "ease": "in"
+      },
+      "seed": 801,
+      "cleanup": {
+        "corners": true,
+        "strays": true
+      },
+      "looks": {
+        "arc": {
+          "colors": [
+            "p",
+            "v",
+            "V",
+            "y",
+            "W"
+          ],
+          "thresholds": [
+            0.12,
+            0.3,
+            0.5,
+            0.72,
+            0.9
+          ],
+          "hold": 0.18
+        }
+      },
+      "layers": [
+        {
+          "kind": "star",
+          "look": "arc",
+          "at": [
+            16,
+            16
+          ],
+          "frames": [
+            0,
+            2
+          ],
+          "points": 4,
+          "angle": 15,
+          "radius": [
+            8.5,
+            13.8
+          ],
+          "ratio": 0.3,
+          "width": [
+            2.4,
+            1.8
+          ],
+          "core": 3.0,
+          "power": [
+            1.55,
+            1.1
+          ],
+          "cue": "hit"
+        },
+        {
+          "kind": "ring",
+          "look": "arc",
+          "at": [
+            16,
+            16
+          ],
+          "frames": [
+            0,
+            3
+          ],
+          "radius": [
+            4,
+            13.5
+          ],
+          "width": [
+            3.2,
+            2.2,
+            1.4
+          ],
+          "noise": 0.65,
+          "scale": 3,
+          "power": [
+            1.35,
+            0.9,
+            0.35
+          ],
+          "ease": "out"
+        },
+        {
+          "kind": "bolt",
+          "look": "arc",
+          "at": [
+            16,
+            16
+          ],
+          "to": [
+            26.5,
+            5.5
+          ],
+          "frames": [
+            0,
+            3
+          ],
+          "width": 1.2,
+          "glow": 1,
+          "jag": 0.48,
+          "branches": 2,
+          "reroll": 1,
+          "segment": 2.4,
+          "power": [
+            1.3,
+            0.9,
+            0.4
+          ],
+          "seed": 809
+        },
+        {
+          "kind": "bolt",
+          "look": "arc",
+          "at": [
+            16,
+            16
+          ],
+          "to": [
+            5.5,
+            5.5
+          ],
+          "frames": [
+            0,
+            3
+          ],
+          "width": 1.2,
+          "glow": 1,
+          "jag": 0.48,
+          "branches": 2,
+          "reroll": 1,
+          "segment": 2.4,
+          "power": [
+            1.3,
+            0.9,
+            0.4
+          ],
+          "seed": 817
+        },
+        {
+          "kind": "bolt",
+          "look": "arc",
+          "at": [
+            16,
+            16
+          ],
+          "to": [
+            26.5,
+            26.5
+          ],
+          "frames": [
+            0,
+            4
+          ],
+          "width": 1.0,
+          "glow": 1,
+          "jag": 0.48,
+          "branches": 1,
+          "reroll": 1,
+          "segment": 2.4,
+          "power": [
+            1.15,
+            0.75,
+            0.3
+          ],
+          "seed": 823
+        },
+        {
+          "kind": "bolt",
+          "look": "arc",
+          "at": [
+            16,
+            16
+          ],
+          "to": [
+            5.5,
+            26.5
+          ],
+          "frames": [
+            0,
+            4
+          ],
+          "width": 1.0,
+          "glow": 1,
+          "jag": 0.48,
+          "branches": 1,
+          "reroll": 1,
+          "segment": 2.4,
+          "power": [
+            1.15,
+            0.75,
+            0.3
+          ],
+          "seed": 829
+        },
+        {
+          "kind": "ring",
+          "look": "arc",
+          "at": [
+            16,
+            16
+          ],
+          "frames": [
+            2,
+            5
+          ],
+          "radius": [
+            7.5,
+            14.5
+          ],
+          "width": [
+            2.6,
+            1.8,
+            1.2
+          ],
+          "noise": 0.85,
+          "scale": 3,
+          "power": [
+            0.95,
+            0.5,
+            0.18
+          ],
+          "ease": "out"
+        },
+        {
+          "kind": "ring",
+          "look": "arc",
+          "at": [
+            16,
+            16
+          ],
+          "frames": [
+            3,
+            5
+          ],
+          "radius": [
+            10.0,
+            14.2
+          ],
+          "width": [
+            2.2,
+            1.4
+          ],
+          "noise": 0.9,
+          "scale": 3,
+          "power": [
+            0.7,
+            0.35
+          ],
+          "ease": "out"
+        }
+      ],
+      "emitters": [
+        {
+          "name": "plasma_sparks",
+          "at": [
+            16,
+            16
+          ],
+          "ring": {
+            "radius": 3.5
+          },
+          "burst": 18,
+          "start": 0,
+          "angle": [
+            0,
+            360
+          ],
+          "speed": [
+            1.5,
+            3.2
+          ],
+          "drag": 0.14,
+          "life": [
+            5,
+            6
+          ],
+          "shapes": [
+            "spark-big",
+            "spark",
+            "spark-v",
+            "spark-dim"
+          ],
+          "trail": {
+            "color": "V",
+            "length": 1
+          }
+        }
+      ]
+    }
+  }
+}

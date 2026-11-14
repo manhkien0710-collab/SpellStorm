@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "name": "camp_tent",
+  "canvas": [
+    40,
+    36
+  ],
+  "pivot": [
+    20,
+    36
+  ],
+  "palette": {
+    "o": "#14101a",
+    "i": "#1e1829",
+    "D": "#172047",
+    "S": "#243b7a",
+    "B": "#3662b8",
+    "L": "#5296e8",
+    "H": "#8fd3ff",
+    "g": "#6b3e12",
+    "n": "#9e631b",
+    "G": "#d99726",
+    "Y": "#ffe066",
+    "W": "#fff7b8",
+    "k": "#2b1a14",
+    "w": "#472b1e",
+    "u": "#6e442c",
+    "U": "#99633f",
+    "R": "#bf926b",
+    "r": "#bf2626",
+    "f": "#f25c22",
+    "a": "#ff9e24",
+    "y": "#ffe054",
+    "c": "#fffbe6"
+  },
+  "frames": [
+    {
+      "name": "camp_tent",
+      "duration_ms": 100,
+      "rows": [
+        "........................................",
+        "........................................",
+        "...............ooo......................",
+        "..............oWYGoo....................",
+        "..............oUukooooooooo.............",
+        ".............ooGGooUUUUuukWYo...........",
+        "............oHLLBBBBBBBBSSGGo...........",
+        "...........oHLBBBBBBBBSBBSSSDoo.........",
+        "..........oHLLBBBBBBBBSSBBBSSDDoo.......",
+        ".........oHLLBBBBBBBBSBBBBSSSDDDDo......",
+        "........oHLLBBBBBBBBBSBBBBBSSSDDDDo.....",
+        ".......oHLLBBBBBBBBGYGYGBBBSSSDDDDDo....",
+        "......oHLLBBBBBBBBoGYiiYGoBSSSDDDDDDo...",
+        ".....oHLLBBBBBBBBoGYiiiiYGoSSSDDDDDDSo..",
+        ".....oHLBBBBBBBBBoGYiWWiYGoSSSDDDDDDSo..",
+        "....oHLBBBBBBBBBoGiiiycyiiGoSSSDDDDDDSo.",
+        "....oLBBBBBBBBBBoGiiycccyiiGoSSDDDDDDSo.",
+        "...oHLBBBBBBBBBBoGiayycyyaiGoSSSDDDDDDSo",
+        "...oLBBBBBBBBBBBoGiaffaaaaffiGoSSDDDDDSo",
+        "..oHLBBBBBBBBBBBoGiiaffrrffaiGoSSDDDDDSo",
+        "..oLBBBBBBBBBBBBoGiiaannnnaaiGoSSDDDDSSo",
+        "..oLBBBBBBBBBBBBoGiiaafnnfaaiGoSSDDDDSSo",
+        ".oHLBBBBBBBBGYGoGiiiaafnnfaaiGGYGoDDDSo.",
+        ".oLBBBBBBBBBBoYGoiiiafnnnnfaaiiGYooDDDSo",
+        ".oLBBBBBBBBBBoGooiiiannnnnnaaaiGoSDDDSo.",
+        ".oRuBBBBBBBBBoGiiaffnnaaaannfaioSSDDSuRo",
+        "oRkoBBBBBBBBBoGiiaffnaayyyaanfioSSSDSoRo",
+        "oUkoLLLLBBBBBoGiifnnaafaaanfnnioSSSoooUo",
+        "oo..oHLLLBBBBoGiifnngnnnnngnnfioSSo..oUo",
+        "....oHLLLSSSoGiiinnnggggggggnnnioSo..oko",
+        "....oHLLSSSSoGiikkkkkkkkkkkkkkioSSo...oo",
+        "....oDDSSSSSoooooiiiiiiiiiiiiiioSSo.....",
+        ".....oooooooooooooooooooooooooooo.......",
+        "........................................",
+        "........................................",
+        "........................................"
+      ]
+    }
+  ]
+}

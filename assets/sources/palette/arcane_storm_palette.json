@@ -1,0 +1,93 @@
+{
+  "name": "Arcane Storm Master Palette",
+  "version": 1,
+  "outline": {
+    "deep_void": "#14101a",
+    "indigo_line": "#1e1829",
+    "plum_shadow": "#2c223d"
+  },
+  "ramps": {
+    "arcane_robe": [
+      "#172047",
+      "#243b7a",
+      "#3662b8",
+      "#5296e8",
+      "#8fd3ff"
+    ],
+    "gold_trim": [
+      "#6b3e12",
+      "#9e631b",
+      "#d99726",
+      "#ffe066",
+      "#fff7b8"
+    ],
+    "skin_beard": [
+      "#8f563b",
+      "#c9845b",
+      "#f2b88c",
+      "#b9c8d9",
+      "#e8f1f8"
+    ],
+    "wood_staff": [
+      "#2b1a14",
+      "#472b1e",
+      "#6e442c",
+      "#99633f"
+    ],
+    "arcane_crystal": [
+      "#1c698c",
+      "#33b5e5",
+      "#8ff5ff",
+      "#ffffff"
+    ],
+    "fiend_hide": [
+      "#1c1624",
+      "#2e2238",
+      "#473354",
+      "#634973"
+    ],
+    "fiend_carapace": [
+      "#4a1222",
+      "#801b2e",
+      "#bf2633",
+      "#f25244",
+      "#ff8a66"
+    ],
+    "fiend_ember": [
+      "#d9571e",
+      "#ff9b26",
+      "#fff3a1"
+    ],
+    "meadow_grass": [
+      "#163020",
+      "#224d2c",
+      "#347539",
+      "#52a349",
+      "#82cf63",
+      "#b8ed87"
+    ],
+    "warm_dirt": [
+      "#382419",
+      "#543826",
+      "#785238",
+      "#9c6f4f",
+      "#bf926b"
+    ],
+    "runic_stone": [
+      "#282c38",
+      "#3e4556",
+      "#5a657a",
+      "#808fa6",
+      "#aebdcf"
+    ],
+    "fire_spell": [
+      "#3d0c18",
+      "#781722",
+      "#bf2626",
+      "#f25c22",
+      "#ff9e24",
+      "#ffe054",
+      "#fffbe6"
+    ]
+  }
+}

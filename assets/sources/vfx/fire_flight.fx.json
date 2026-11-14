@@ -1,0 +1,137 @@
+{
+  "format": "pixelforge-fx",
+  "version": 1,
+  "name": "fire-flight",
+  "width": 24,
+  "height": 24,
+  "palette": {
+    "W": "#fffbe6",
+    "y": "#ffe054",
+    "O": "#ff9e24",
+    "o": "#f25c22",
+    "r": "#bf2626",
+    "R": "#781722",
+    "D": "#3d0c18"
+  },
+  "symbols": {
+    "ember-streak": [
+      "yW"
+    ],
+    "ember-gold": [
+      "y"
+    ],
+    "ember-orange": [
+      "O"
+    ],
+    "ember-red": [
+      "r"
+    ],
+    "ember-deep": [
+      "R"
+    ]
+  },
+  "anchor": [15, 12],
+  "effects": {
+    "flight": {
+      "frames": 6,
+      "duration": 65,
+      "loop": true,
+      "seed": 31,
+      "looks": {
+        "fire": {
+          "colors": ["R", "r", "o", "O", "y", "W"],
+          "thresholds": [0.15, 0.29, 0.45, 0.63, 0.81, 1.01],
+          "hold": 0.16
+        }
+      },
+      "cleanup": {
+        "corners": true,
+        "strays": true
+      },
+      "layers": [
+        {
+          "kind": "beam",
+          "look": "fire",
+          "at": [15.5, 12],
+          "to": [2.2, 12],
+          "width": 7.0,
+          "fade": 0.93,
+          "wobble": 0.36,
+          "wavelength": 5.5,
+          "waves": 2,
+          "noise": 0.55,
+          "scale": 2,
+          "flow": [-11, 0],
+          "power": 1.25
+        },
+        {
+          "kind": "stream",
+          "look": "fire",
+          "at": [14.8, 9.6],
+          "through": [[9.0, 7.6], [3.0, 9.4]],
+          "width": 3.4,
+          "taper": [0.95, 0.55, 0.1],
+          "fade": 0.88,
+          "sway": 1.45,
+          "wavelength": 7,
+          "waves": 1,
+          "noise": 0.48,
+          "scale": 2,
+          "power": 0.94,
+          "seed": 31
+        },
+        {
+          "kind": "stream",
+          "look": "fire",
+          "at": [14.8, 14.4],
+          "through": [[9.0, 16.4], [3.0, 14.6]],
+          "width": 3.4,
+          "taper": [0.95, 0.55, 0.1],
+          "fade": 0.88,
+          "sway": -1.45,
+          "wavelength": 7,
+          "waves": 1,
+          "noise": 0.48,
+          "scale": 2,
+          "power": 0.94,
+          "seed": 47
+        },
+        {
+          "kind": "burst",
+          "look": "fire",
+          "at": [15.5, 12],
+          "radius": [4.6, 5.1, 4.6],
+          "squash": [1.18, 0.90],
+          "noise": 0.32,
+          "scale": 2,
+          "boil": 5,
+          "power": [1.20, 1.32, 1.20],
+          "seed": 11
+        }
+      ],
+      "emitters": [
+        {
+          "name": "cinders",
+          "at": [9.5, 12],
+          "area": [5, 7],
+          "rate": 1.4,
+          "angle": [162, 198],
+          "speed": [1.2, 2.0],
+          "drag": 0.08,
+          "life": [4, 5],
+          "sway": {
+            "amplitude": [0, 1.2],
+            "period": 6
+          },
+          "shapes": [
+            "ember-streak",
+            "ember-gold",
+            "ember-orange",
+            "ember-red",
+            "ember-deep"
+          ]
+        }
+      ]
+    }
+  }
+}

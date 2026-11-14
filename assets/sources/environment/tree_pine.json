@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "name": "tree_pine",
+  "canvas": [
+    24,
+    48
+  ],
+  "pivot": [
+    12,
+    48
+  ],
+  "palette": {
+    "o": "#14101a",
+    "i": "#19222d",
+    "v": "#163020",
+    "d": "#224d2c",
+    "g": "#347539",
+    "l": "#52a349",
+    "h": "#82cf63",
+    "H": "#b8ed87",
+    "k": "#2b1a14",
+    "w": "#472b1e",
+    "u": "#6e442c",
+    "U": "#99633f"
+  },
+  "frames": [
+    {
+      "name": "tree_pine",
+      "duration_ms": 100,
+      "rows": [
+        "........................",
+        "...........oo...........",
+        "..........oHho..........",
+        ".........oHllgo.........",
+        ".........ohlggo.........",
+        "........oHlggddo........",
+        "........ohllgddo........",
+        ".......oHlgggdvvo.......",
+        "......oHlgglggdvvo......",
+        "......ohlgllggdvio......",
+        ".....ooggllggddviio.....",
+        ".....oHlgggvvddioo......",
+        "....oHllgdviivvvdo......",
+        "....ohlgllggdvddggo.....",
+        "...oHlglhllggdddgddo....",
+        "...ohlgggglggdddgdvo....",
+        "..oHllgggglggddvvddvo...",
+        "..ohllggddgddvvivvdio...",
+        "..oogddvvviivvviiiioo...",
+        "...oHllggviigggdddvo....",
+        "..oHhllgllgglggddgdvo...",
+        ".oHllgglhllgllgdddgdvo..",
+        ".ohllggllggggggdddgddvo.",
+        "oHllgggggllggggddvvddvo.",
+        "ohllgddgglgggddddvvddio.",
+        ".ooggdvvviiivvvvviviiio.",
+        "..oHlgdviiiiiggddviiio..",
+        ".oHllgglllgggggddddggo..",
+        ".ohllglhllglgggdddgddvo.",
+        "oHllggllggllgggdddgddvvo",
+        "ohllgggggggggggddddvvddo",
+        "olgggddgglgggddddvvddvio",
+        "oggdddvvviiidddvvviiiio.",
+        ".ogdviigllggddviivvdggo.",
+        "oHlgdgglhlggdddgddddvvo.",
+        "ohlgdggllggddddvvddvvio.",
+        ".ooggdvviiivvvvvviiioo..",
+        "...oovviioookkkooiio....",
+        ".....oooo..oUukko.......",
+        "...........oUuwko.......",
+        "...........oUuwko.......",
+        "...........oUuwko.......",
+        "..........oUUuwkko......",
+        "..........oUuuwkko......",
+        ".........oUUuuwkkko.....",
+        ".........oUukwookko.....",
+        "..........ooo..ooo......",
+        "........................"
+      ]
+    }
+  ]
+}

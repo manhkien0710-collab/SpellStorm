@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "name": "rock_large",
+  "canvas": [
+    32,
+    32
+  ],
+  "pivot": [
+    16,
+    32
+  ],
+  "palette": {
+    "o": "#14101a",
+    "s": "#282c38",
+    "d": "#3e4556",
+    "m": "#5a657a",
+    "l": "#808fa6",
+    "h": "#aebdcf",
+    "k": "#224d2c",
+    "g": "#347539",
+    "L": "#52a349",
+    "H": "#82cf63",
+    "c": "#1c698c",
+    "C": "#33b5e5",
+    "E": "#8ff5ff"
+  },
+  "frames": [
+    {
+      "name": "rock_large",
+      "duration_ms": 100,
+      "rows": [
+        "................................",
+        "................................",
+        "................................",
+        "................................",
+        ".........oooooo.................",
+        "........ohhhllmo................",
+        ".......ohHlHLLmmo...............",
+        "......ohLLHHgLgddo..............",
+        ".....ohhlLggkgmddo...ooooo......",
+        ".....ohllmgkgmddso..ohhhllmo....",
+        "....ohllmmkkmmmdso.ohhllmmmdo...",
+        "....ohllmmmmmdddsoohllmmmdddo...",
+        "...oohllmmmddddssmmmllmmmdddo...",
+        "..oHhllmmmmdddssmmlmmmmddddsdo..",
+        "..oHllmmmmddddsmllmmCCmddddsdo..",
+        "..ohllmmmmmddsmmllcCEECmddssddo.",
+        "..olllmmmmddddmmllcCEcmdddssddo.",
+        ".oohllmmmdddddmmsdCCcmddddssddo.",
+        ".ohllmmmmddddddmsCECcddddssdddo.",
+        ".ohllmmmdddddddmsCCcmdddsssdddo.",
+        ".olmkkmmddddddddsdccdddssssddso.",
+        ".okLLgkmmdddddddddddddsssssddso.",
+        ".okHLgkkmmdddddddddddsssssddsoo.",
+        ".ookggkkmdddddddddddssssddggko..",
+        "..ookkkmddddddddddsssssddgLHko..",
+        "..oolmmmdddddssssssssssddkgkko..",
+        "..oommddddssssssssssssssddkkso..",
+        "..oossssssdssssssssssssssssooo..",
+        "...oosssssdssssssssssssssso.....",
+        "....oossssssssssssssssssoo......",
+        ".....oooooooooooooooooooo.......",
+        "................................"
+      ]
+    }
+  ]
+}

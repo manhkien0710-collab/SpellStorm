@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "name": "log",
+  "canvas": [
+    28,
+    18
+  ],
+  "pivot": [
+    14,
+    18
+  ],
+  "palette": {
+    "o": "#14101a",
+    "i": "#1e1829",
+    "k": "#2b1a14",
+    "w": "#472b1e",
+    "u": "#6e442c",
+    "U": "#99633f",
+    "B": "#bf926b",
+    "R": "#e8c28b",
+    "v": "#163020",
+    "d": "#224d2c",
+    "g": "#347539",
+    "l": "#52a349",
+    "h": "#82cf63",
+    "f": "#9e631b",
+    "F": "#d99726",
+    "Y": "#ffe066"
+  },
+  "frames": [
+    {
+      "name": "log",
+      "duration_ms": 100,
+      "rows": [
+        "............................",
+        "............................",
+        "............................",
+        ".........ooooooo............",
+        "...oooooooohhhlllooooooo....",
+        "..oRRRRBUoohllllgggguUUUo...",
+        ".oRBBiiBBUoUUllgggddduUBRo..",
+        ".oRBiiiiiBUuUlggddvukwUBBko.",
+        ".oRBiiiiikBUugddvvuuwkRBUwo.",
+        ".oRBUiiikwBUukdvwukYFFukBwo.",
+        ".oUBBUkkwuuukwwuuukFfukwko..",
+        "..oUUBuuwkkkwwuYFFuwkkwko...",
+        "..oowuuuuwwwuuukFfukwwkko...",
+        "...oowwwkkkkwwukkkkwwkoo....",
+        "....ooowwkkkkkkwwkkooo......",
+        "......ooooooooooooo.........",
+        "............................",
+        "............................"
+      ]
+    }
+  ]
+}

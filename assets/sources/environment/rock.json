@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "name": "rock",
+  "canvas": [
+    24,
+    24
+  ],
+  "pivot": [
+    12,
+    24
+  ],
+  "palette": {
+    "o": "#14101a",
+    "s": "#282c38",
+    "d": "#3e4556",
+    "m": "#5a657a",
+    "l": "#808fa6",
+    "h": "#aebdcf",
+    "k": "#224d2c",
+    "g": "#347539",
+    "L": "#52a349",
+    "H": "#82cf63"
+  },
+  "frames": [
+    {
+      "name": "rock",
+      "duration_ms": 100,
+      "rows": [
+        "........................",
+        "........................",
+        "........................",
+        "........................",
+        "........................",
+        "........................",
+        "........................",
+        "........ooooooo.........",
+        "......ooHHhhllloo.......",
+        ".....oHhLLglllmmdo......",
+        "....oHhLLgHgllmmmdo.....",
+        "....oHlLgggkllmmdddo....",
+        "...oHllgkkkmhmmdmdddo...",
+        "...ohllmmmmhmmddddsdo...",
+        "..oHllmmmmmmhmddddssdo..",
+        "..ohllmmmmdddmdddssddo..",
+        "..olllmmdddsdmddssdddo..",
+        "..olmkmddsssdmdssddddo..",
+        "..okgkmddsssdsssssdddo..",
+        "..okggmddsssssssssddso..",
+        "..ookkmddssssssssddsoo..",
+        "...oosssssssdssssssso...",
+        "....oooooooooooooooo....",
+        "........................"
+      ]
+    }
+  ]
+}

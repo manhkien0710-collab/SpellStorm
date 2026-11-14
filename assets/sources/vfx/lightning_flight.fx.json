@@ -1,0 +1,211 @@
+{
+  "format": "pixelforge-fx",
+  "version": 1,
+  "name": "spell_lightning_flight",
+  "width": 24,
+  "height": 24,
+  "anchor": [
+    15,
+    12
+  ],
+  "palette": {
+    "p": "#4b2382",
+    "v": "#8e4fe0",
+    "V": "#c884ff",
+    "y": "#ffe954",
+    "W": "#ffffff"
+  },
+  "symbols": {
+    "spark-big": [
+      "VW",
+      "yV"
+    ],
+    "spark": [
+      "y"
+    ],
+    "spark-v": [
+      "V"
+    ],
+    "spark-dim": [
+      "p"
+    ]
+  },
+  "effects": {
+    "flight": {
+      "frames": 6,
+      "duration": 65,
+      "loop": true,
+      "seed": 201,
+      "cleanup": {
+        "corners": true,
+        "strays": true
+      },
+      "looks": {
+        "arc": {
+          "colors": [
+            "p",
+            "v",
+            "V",
+            "y",
+            "W"
+          ],
+          "thresholds": [
+            0.12,
+            0.3,
+            0.5,
+            0.72,
+            0.9
+          ],
+          "hold": 0.18
+        }
+      },
+      "layers": [
+        {
+          "kind": "beam",
+          "look": "arc",
+          "at": [
+            15,
+            12
+          ],
+          "to": [
+            3.5,
+            12
+          ],
+          "width": 4.2,
+          "fade": 0.95,
+          "wobble": 0.35,
+          "wavelength": 5,
+          "waves": 2,
+          "noise": 0.55,
+          "scale": 2,
+          "power": 0.75
+        },
+        {
+          "kind": "bolt",
+          "look": "arc",
+          "at": [
+            16.5,
+            12
+          ],
+          "to": [
+            2.8,
+            12
+          ],
+          "width": 1.4,
+          "glow": 1,
+          "jag": 0.48,
+          "branches": 2,
+          "reroll": 2,
+          "segment": 2.4,
+          "power": 1.15,
+          "seed": 205
+        },
+        {
+          "kind": "bolt",
+          "look": "arc",
+          "at": [
+            14.5,
+            10
+          ],
+          "to": [
+            3.5,
+            8.4
+          ],
+          "width": 1.0,
+          "glow": 0.8,
+          "jag": 0.45,
+          "branches": 0,
+          "reroll": 2,
+          "segment": 2.4,
+          "power": 0.78,
+          "seed": 211
+        },
+        {
+          "kind": "bolt",
+          "look": "arc",
+          "at": [
+            14.5,
+            14
+          ],
+          "to": [
+            3.5,
+            15.6
+          ],
+          "width": 1.0,
+          "glow": 0.8,
+          "jag": 0.45,
+          "branches": 0,
+          "reroll": 2,
+          "segment": 2.4,
+          "power": 0.78,
+          "seed": 217
+        },
+        {
+          "kind": "burst",
+          "look": "arc",
+          "at": [
+            15.2,
+            12
+          ],
+          "radius": 4.2,
+          "noise": 0.4,
+          "scale": 2,
+          "boil": 4,
+          "power": 1.35
+        },
+        {
+          "kind": "star",
+          "look": "arc",
+          "at": [
+            15.8,
+            12
+          ],
+          "points": 4,
+          "angle": 0,
+          "radius": [
+            4.3,
+            5.1,
+            4.3
+          ],
+          "ratio": 0.35,
+          "width": 1.5,
+          "core": 1.4,
+          "power": 1.45
+        }
+      ],
+      "emitters": [
+        {
+          "name": "sparks",
+          "at": [
+            11,
+            12
+          ],
+          "area": [
+            8,
+            7
+          ],
+          "rate": 0.9,
+          "angle": [
+            145,
+            215
+          ],
+          "speed": [
+            0.7,
+            1.5
+          ],
+          "drag": 0.05,
+          "life": [
+            3,
+            4
+          ],
+          "shapes": [
+            "spark-big",
+            "spark",
+            "spark-v",
+            "spark-dim"
+          ]
+        }
+      ]
+    }
+  }
+}

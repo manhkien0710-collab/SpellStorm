@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "name": "stone",
+  "canvas": [
+    32,
+    32
+  ],
+  "pivot": [
+    16,
+    16
+  ],
+  "palette": {
+    "v": "#1e1829",
+    "m": "#282c38",
+    "s": "#3e4556",
+    "b": "#5a657a",
+    "l": "#808fa6",
+    "h": "#aebdcf",
+    "k": "#224d2c",
+    "g": "#347539",
+    "L": "#52a349"
+  },
+  "frames": [
+    {
+      "name": "stone",
+      "duration_ms": 100,
+      "rows": [
+        "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
+        "vvhhllllllllllllvvvhhlllllllllvm",
+        "vhlbbbbbbbbbbbbbsvhlbbbbbbbbbbsm",
+        "vhbbbbbbbbbbbbbbsvhbbbbbbbbbbssm",
+        "vlbbbbbbbbbbbbbbsvlbbbbbbbbbbssm",
+        "vlbbbbbbbbbbbbbbsvlbbbbbbbbbbssm",
+        "vlbbbbbbbbbbbbbbsvlbbbbbbbbbbssm",
+        "vlbbbsbbbbbbbbbbsvlbbbbbbbbbbssm",
+        "vlbbbbssbbbbbbbbsvlbbssssssssssm",
+        "vlbbbbbbsbbbbbbbsvlbbssssssssssm",
+        "vvsssssssssssssskgksssssssssssvm",
+        "mmmmmmmmmmmmmmmmgLgmmmmmmmmmmmmm",
+        "llllllvvvhhllllllkllllvvvhhlllll",
+        "bbbbbbsvhlbbbbbbbbbbbbsvhlllllbb",
+        "bbbbbbsvhbbbbbbsbbbbbbsvhlbbbbbb",
+        "bbbbbbsvlbbbbbslsbbbbbsvllbbbbbb",
+        "bbbbbbsvlbbbbsbblsbbbbsvlbbbbbbb",
+        "bbbbbbsvlbbbbbsbsbbbbbsvlbbbbbbb",
+        "bbbbbbsvlbbbbbbsbbbbbbsvlbbbbbbb",
+        "bbbbbbsvlbbbbbbbbbbbbbsvlbbbbbbb",
+        "bbbbbbsvlbbbbbbbbbbbbbsvlbbbbbbb",
+        "ssssssvvvsssssssssssssvvvsssssss",
+        "mmmmmmmmmmmmmmmmmmmmmmmmmmmmgLmm",
+        "lllllllllllllvvvhhlllllllllvkkhh",
+        "bbbbbbbbbbbbbsvhlbbbbbbbbbbsvhlb",
+        "bbbbbbbbbbbbssvhbbbbbbsbbbbsvhbb",
+        "bbbbbbbbbbbbssvlbbbbbsbbbbbsvlbb",
+        "bbbbbbbbbbbbssvlbbbbbsbbbbbsvlbb",
+        "bbbbbbbbbbbbssvlbbbbbbbbbbbsvlbb",
+        "ssssssssssssssvlbbbbbbbbbbbsvlbb",
+        "ssssssssssssssvlbbbbbbbbbbbsvlbb",
+        "sssssssssssssvvvsssssssssssvvvss"
+      ]
+    }
+  ]
+}

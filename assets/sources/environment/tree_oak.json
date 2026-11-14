@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "name": "tree_oak",
+  "canvas": [
+    32,
+    48
+  ],
+  "pivot": [
+    16,
+    48
+  ],
+  "palette": {
+    "o": "#14101a",
+    "i": "#19222d",
+    "v": "#163020",
+    "d": "#224d2c",
+    "g": "#347539",
+    "l": "#52a349",
+    "h": "#82cf63",
+    "H": "#b8ed87",
+    "k": "#2b1a14",
+    "w": "#472b1e",
+    "u": "#6e442c",
+    "U": "#99633f"
+  },
+  "frames": [
+    {
+      "name": "tree_oak",
+      "duration_ms": 100,
+      "rows": [
+        "...........oooooooo.............",
+        ".........ooHHhhllggoo...........",
+        "........oHHhhlllhllggo..........",
+        ".......oHhllhhhllllgdgo.........",
+        "......oHhllhHhlggllgddgo........",
+        ".....oHlllllhllggggggddo........",
+        ".....oHllggllggdgggddgdvo.......",
+        "....oohllgggdggdddgddgddoo......",
+        "...oHHhllggddggggllhlggdggo.....",
+        "..oHHhlllggddgllhllhllggddgo....",
+        ".oHhllllggddgdlhlHhlhlggdddgo...",
+        ".oHllhhllgdddglllhlllgggddddo...",
+        "oHhllhhllgdvdgggggggggdddgddgo..",
+        "oHlllgglgddvdglllhhllgggddggdo..",
+        "oHllggggdddvhllHHhhlhllggddgdo..",
+        "olgggdddvdvdhlHHhhllhllggddgdo..",
+        "olggdddvdvvdllhllllllggggdddvo..",
+        ".ogdddgllhllgggllgggddggdddvo...",
+        ".ogdggllHHhllggggggdddgdddvo....",
+        ".oggdllhhllhllggggddgddddvvo....",
+        "oHllgdllllllgggddgggggdddggoo...",
+        "olllgddggggggddgllhllgggddggdo..",
+        "oggdddgdvvddvdgllhllggggddgdvo..",
+        ".oggdddvvviiivggggggggdddgdvvo..",
+        ".ovgddvviiiiivddggggddddvvvvo...",
+        "..ovvvvviiiiivddddddvdvviiio....",
+        "...ooooiiiiiiookkkddvviiiiio....",
+        ".......oooooookwkkkkviiiiio.....",
+        ".............oUukwkkvooooo......",
+        ".............oUuwkkko...........",
+        ".............oUuwkko............",
+        ".............oUuwkko............",
+        ".............oUuwkko............",
+        ".............oUuwkko............",
+        ".............oUuwkko............",
+        ".............oUuwkko............",
+        "............oUUuwkko............",
+        "............oUuuwkkoo...........",
+        "...........oUUuuwkkko...........",
+        "...........oUuuwwkkko...........",
+        "..........oUUuuwuwkkko..........",
+        ".........oUUuuwuuuwkkko.........",
+        "........oUUuwwoowuuwkkko........",
+        ".......oUuwwoo.oUuwookkko.......",
+        "......oUUuwo...oUuk..owkko......",
+        "......oUukko...oUko..oowkko.....",
+        ".......oooo.....oo....oooo......",
+        "................................"
+      ]
+    }
+  ]
+}

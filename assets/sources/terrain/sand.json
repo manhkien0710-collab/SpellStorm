@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "name": "sand",
+  "canvas": [
+    32,
+    32
+  ],
+  "pivot": [
+    16,
+    16
+  ],
+  "palette": {
+    "D": "#7a5b3c",
+    "s": "#a88259",
+    "b": "#cc9f6e",
+    "l": "#e8c28b"
+  },
+  "frames": [
+    {
+      "name": "sand",
+      "duration_ms": 100,
+      "rows": [
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbbssbbbbbbbbbbbbblbb",
+        "bbbbbbbbbbbbbsssbbbbbbbbbbbbbbsb",
+        "bbbbllllllbbbbbbbbbbbbbbbbbbbbbb",
+        "bbllssssssllbbbbbbbbbbbbbblbbbbb",
+        "bbbbbssssbbbbbbbbbbbbbbbbsDbbbbb",
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbblbbbbbbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbbbsbbbbbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbbbbbbbblllllllbbbbb",
+        "bbbbbbbbbbbbbbbbbbllsssssssllbbb",
+        "bbbbbbbbblbbbbbbbbbbbssssbbbbbbb",
+        "bbbbbbbbbsDbbbbbbbbbbbbbbbbbbbbb",
+        "bbbblbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "bbbbbsbbbbbbbbbbbbbbbbbbbbbbssbb",
+        "bbbbbbbbbbbbbbbbbblbbbbbbbbsssbb",
+        "bbbbbbbbbbbbbbbbbbbDbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "bbbbbbbllllllllbbbbbbbbbbbbbbbbb",
+        "bbbbbllssssssssllbbbbbbbbbbbbbbb",
+        "bbbbbbbbsssssbbbbbbbbblbbbbbbbbb",
+        "bbbbbbbbbbbbbbbbbbbbbbbsbbbbbbbb",
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbbbssbbbbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbbbsbbbbbbbbbbbbbbbb",
+        "bbbbbbblsbbbbbbbbbbbbbllllllbbbb",
+        "bbbbbbbbDbbbbbbbbbbbllssssssllbb",
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      ]
+    }
+  ]
+}

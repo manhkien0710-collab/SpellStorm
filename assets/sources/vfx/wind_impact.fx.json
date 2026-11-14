@@ -1,0 +1,222 @@
+{
+  "format": "pixelforge-fx",
+  "version": 1,
+  "name": "vfx_wind_impact",
+  "width": 32,
+  "height": 32,
+  "anchor": [
+    16,
+    16
+  ],
+  "palette": {
+    "d": "#134d3b",
+    "g": "#2ca86d",
+    "m": "#7bf2a8",
+    "w": "#f0fff4"
+  },
+  "symbols": {
+    "wisp-big": [
+      "mw",
+      "gm"
+    ],
+    "wisp": [
+      "m"
+    ],
+    "wisp-dim": [
+      "g"
+    ]
+  },
+  "effects": {
+    "impact": {
+      "frames": 6,
+      "duration": {
+        "from": 45,
+        "to": 90,
+        "ease": "in"
+      },
+      "seed": 901,
+      "cleanup": {
+        "corners": true,
+        "strays": true
+      },
+      "looks": {
+        "gale": {
+          "colors": [
+            "d",
+            "g",
+            "m",
+            "w"
+          ],
+          "thresholds": [
+            0.14,
+            0.36,
+            0.64,
+            0.88
+          ],
+          "hold": 0.16
+        }
+      },
+      "layers": [
+        {
+          "kind": "star",
+          "look": "gale",
+          "at": [
+            16,
+            16
+          ],
+          "frames": [
+            0,
+            1
+          ],
+          "points": 4,
+          "angle": 45,
+          "radius": [
+            5.5,
+            10.5
+          ],
+          "ratio": 0.35,
+          "width": 2.2,
+          "core": 2.2,
+          "power": [
+            1.4,
+            0.9
+          ],
+          "cue": "hit"
+        },
+        {
+          "kind": "slash",
+          "look": "gale",
+          "at": [
+            16,
+            16
+          ],
+          "frames": [
+            0,
+            4
+          ],
+          "radius": [
+            5.5,
+            12.6
+          ],
+          "arc": [
+            -45,
+            120
+          ],
+          "width": [
+            3.6,
+            2.2,
+            1.2
+          ],
+          "reveal": 0,
+          "power": [
+            1.4,
+            1.0,
+            0.45
+          ],
+          "ease": "out"
+        },
+        {
+          "kind": "slash",
+          "look": "gale",
+          "at": [
+            16,
+            16
+          ],
+          "frames": [
+            0,
+            4
+          ],
+          "radius": [
+            5.5,
+            12.6
+          ],
+          "arc": [
+            135,
+            300
+          ],
+          "width": [
+            3.6,
+            2.2,
+            1.2
+          ],
+          "reveal": 0,
+          "power": [
+            1.4,
+            1.0,
+            0.45
+          ],
+          "ease": "out"
+        },
+        {
+          "kind": "ring",
+          "look": "gale",
+          "at": [
+            16,
+            16
+          ],
+          "frames": [
+            1,
+            5
+          ],
+          "radius": [
+            4.5,
+            13.5
+          ],
+          "width": [
+            3.4,
+            2.2,
+            1.4
+          ],
+          "noise": 0.75,
+          "scale": 3,
+          "power": [
+            1.25,
+            0.85,
+            0.45
+          ],
+          "ease": "out"
+        }
+      ],
+      "emitters": [
+        {
+          "name": "tempest_wisps",
+          "at": [
+            16,
+            16
+          ],
+          "ring": {
+            "radius": 4.2
+          },
+          "burst": 18,
+          "start": 0,
+          "angle": [
+            0,
+            360
+          ],
+          "speed": [
+            1.1,
+            2.4
+          ],
+          "drag": 0.12,
+          "life": [
+            5,
+            6
+          ],
+          "shapes": [
+            "wisp-big",
+            "wisp",
+            "wisp-dim"
+          ],
+          "attract": {
+            "at": [
+              16,
+              16
+            ],
+            "strength": 0.15,
+            "swirl": 3.0
+          }
+        }
+      ]
+    }
+  }
+}
