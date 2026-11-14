@@ -221,4 +221,16 @@ public class RangedEnemy extends Enemy {
         }
         updateFacing(targetPos);
     }
+
+    @Override
+    public void rebase(float deltaX, float deltaY) {
+        super.rebase(deltaX, deltaY);
+        targetPosCopy.sub(deltaX, deltaY);
+    }
+
+    public void setTargetPosCopyForTesting(Vector2D pos) {
+        if (pos != null) {
+            targetPosCopy.set(pos);
+        }
+    }
 }

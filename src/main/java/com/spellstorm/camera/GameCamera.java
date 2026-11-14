@@ -4,6 +4,7 @@ import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.math.Rectangle;
 import com.spellstorm.math.MathUtils;
 import com.spellstorm.math.Vector2D;
+import com.spellstorm.world.FloatingOriginAware;
 
 /**
  * Smooth 2D gameplay camera following target entities (Player) in world coordinates.
@@ -16,7 +17,7 @@ import com.spellstorm.math.Vector2D;
  * - Pure simulation mode: Zero graphics context dependencies for 100% headless JUnit 5 tests.
  * - Hardware render mode: Synchronizes with LibGDX OrthographicCamera with yDown=true.
  */
-public class GameCamera {
+public class GameCamera implements FloatingOriginAware {
 
     // Zoom limits and defaults
     public static final float MIN_ZOOM = 0.75f;
@@ -59,6 +60,7 @@ public class GameCamera {
     private float zoom;
     private float targetZoom;
     private float followSpeed = DEFAULT_FOLLOW_SPEED;
+    private boolean clampingEnabled = true;
 
     // Reusable objects for zero-allocation performance
     private final Rectangle visibleBounds = new Rectangle();
@@ -200,6 +202,9 @@ public class GameCamera {
     // =========================================================================
 
     public float clampCenterX(float desiredX) {
+        if (!clampingEnabled) {
+            return desiredX;
+        }
         float halfW = getViewWidth() * 0.5f;
         if (worldWidth <= getViewWidth()) {
             return worldLeft + worldWidth * 0.5f;
@@ -210,6 +215,9 @@ public class GameCamera {
     }
 
     public float clampCenterY(float desiredY) {
+        if (!clampingEnabled) {
+            return desiredY;
+        }
         float halfH = getViewHeight() * 0.5f;
         if (worldHeight <= getViewHeight()) {
             return worldTop + worldHeight * 0.5f;
@@ -217,6 +225,36 @@ public class GameCamera {
         float minY = worldTop + halfH;
         float maxY = worldTop + worldHeight - halfH;
         return MathUtils.clamp(desiredY, minY, maxY);
+    }
+
+    public boolean isClampingEnabled() {
+        return clampingEnabled;
+    }
+
+    public void setClampingEnabled(boolean clampingEnabled) {
+        this.clampingEnabled = clampingEnabled;
+    }
+
+    /**
+     * Shifts the camera center and boundary coordinates by (-deltaX, -deltaY)
+     * during a centralized atomic floating-origin shift.
+     */
+    public void rebase(float deltaX, float deltaY) {
+        this.centerX -= deltaX;
+        this.centerY -= deltaY;
+        this.visibleBounds.x -= deltaX;
+        this.visibleBounds.y -= deltaY;
+        this.worldLeft -= deltaX;
+        this.worldTop -= deltaY;
+        if (this.gdxCamera != null) {
+            this.gdxCamera.position.set(this.centerX, this.centerY, 0.0f);
+            this.gdxCamera.update();
+        }
+    }
+
+    @Override
+    public void onOriginShift(long deltaX, long deltaY) {
+        rebase((float) deltaX, (float) deltaY);
     }
 
     // =========================================================================

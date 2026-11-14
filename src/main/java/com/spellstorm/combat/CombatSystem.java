@@ -8,6 +8,7 @@ import com.spellstorm.entities.Projectile;
 import com.spellstorm.entities.ProjectileFaction;
 import com.spellstorm.math.CollisionUtils;
 import com.spellstorm.math.Vector2D;
+import com.spellstorm.world.FloatingOriginAware;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -18,7 +19,7 @@ import java.util.function.Consumer;
  * Coordinates in-flight projectiles, hit collisions, on-hit spell effects,
  * arena boundary pruning, and implements CombatServices for area/chain elemental spells.
  */
-public class CombatSystem implements CombatServices {
+public class CombatSystem implements CombatServices, FloatingOriginAware {
 
     private Rectangle arenaBounds = new Rectangle(0, 0, 4096, 4096);
     private final List<Projectile> projectiles = new ArrayList<>();
@@ -197,5 +198,23 @@ public class CombatSystem implements CombatServices {
                 action.accept(enemy);
             }
         }
+    }
+
+    public void rebase(float deltaX, float deltaY) {
+        for (int i = 0; i < projectiles.size(); i++) {
+            Projectile p = projectiles.get(i);
+            if (p != null && p.isAlive()) {
+                p.rebase(deltaX, deltaY);
+            }
+        }
+        if (arenaBounds != null) {
+            arenaBounds.x -= deltaX;
+            arenaBounds.y -= deltaY;
+        }
+    }
+
+    @Override
+    public void onOriginShift(long deltaX, long deltaY) {
+        rebase((float) deltaX, (float) deltaY);
     }
 }

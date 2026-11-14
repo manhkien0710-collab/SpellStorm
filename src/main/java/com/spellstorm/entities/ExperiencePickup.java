@@ -144,4 +144,10 @@ public class ExperiencePickup extends Entity {
     public float getBaseY() {
         return baseY;
     }
+
+    @Override
+    public void rebase(float deltaX, float deltaY) {
+        super.rebase(deltaX, deltaY);
+        this.baseY -= deltaY;
+    }
 }

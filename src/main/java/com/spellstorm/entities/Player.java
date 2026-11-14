@@ -5,6 +5,7 @@ import com.badlogic.gdx.Input.Keys;
 import com.spellstorm.math.MathUtils;
 import com.spellstorm.math.Vector2D;
 import com.spellstorm.world.TileMap;
+import com.spellstorm.world.WorldGrid;
 
 /**
  * Controllable wizard player avatar in SpellStorm.
@@ -166,6 +167,71 @@ public class Player extends Character {
         boolean right = Gdx.input.isKeyPressed(Keys.D) || Gdx.input.isKeyPressed(Keys.RIGHT);
 
         handleMovementInput(up, down, left, right, dt, tileMap);
+    }
+
+    /**
+     * Headless input method: updates movement from explicitly injected boolean states with WorldGrid.
+     */
+    public void handleMovementInputGrid(boolean up, boolean down, boolean left, boolean right,
+                                        float dt, WorldGrid worldGrid) {
+        if (!isAlive()) {
+            velocity.setZero();
+            return;
+        }
+
+        Vector2D moveDir = computeMovementVector(up, down, left, right);
+        moveAndResolve(moveDir, dt, worldGrid);
+    }
+
+    /**
+     * Moves the player in the given direction and resolves sliding collisions against the WorldGrid.
+     */
+    public void moveAndResolve(Vector2D moveDir, float dt, WorldGrid worldGrid) {
+        if (!isAlive() || dt <= 0.0f) {
+            velocity.setZero();
+            return;
+        }
+
+        Vector2D desiredVel = (moveDir != null && !moveDir.isZero())
+                ? moveDir.cpy().nor().scl(getCurrentMoveSpeed())
+                : new Vector2D();
+
+        Vector2D combinedVel = desiredVel.cpy().add(knockback);
+
+        Vector2D oldPos = position.cpy();
+        Vector2D candidatePos = oldPos.cpy().mulAdd(combinedVel, dt);
+
+        if (worldGrid != null) {
+            Vector2D resolvedPos = worldGrid.resolveCollision(oldPos, candidatePos, radius);
+            position.set(resolvedPos);
+            velocity.set((resolvedPos.x - oldPos.x) / dt, (resolvedPos.y - oldPos.y) / dt);
+        } else {
+            position.set(candidatePos);
+            velocity.set(combinedVel);
+        }
+
+        updateKnockback(dt);
+
+        if (velocity.len2() > 1.0f) {
+            animTimer += dt * 8.0f;
+        }
+    }
+
+    /**
+     * Interactive input handler polling LibGDX keyboard state with WorldGrid.
+     * Safely no-ops if Gdx.input is null in headless environments.
+     */
+    public void handleInput(float dt, WorldGrid worldGrid) {
+        if (Gdx.input == null || !isAlive()) {
+            return;
+        }
+
+        boolean up = Gdx.input.isKeyPressed(Keys.W) || Gdx.input.isKeyPressed(Keys.UP);
+        boolean down = Gdx.input.isKeyPressed(Keys.S) || Gdx.input.isKeyPressed(Keys.DOWN);
+        boolean left = Gdx.input.isKeyPressed(Keys.A) || Gdx.input.isKeyPressed(Keys.LEFT);
+        boolean right = Gdx.input.isKeyPressed(Keys.D) || Gdx.input.isKeyPressed(Keys.RIGHT);
+
+        handleMovementInputGrid(up, down, left, right, dt, worldGrid);
     }
 
     // =========================================================================

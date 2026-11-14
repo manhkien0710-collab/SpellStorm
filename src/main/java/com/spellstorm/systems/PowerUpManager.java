@@ -6,6 +6,7 @@ import com.spellstorm.entities.WorldPowerUp;
 import com.spellstorm.math.MathUtils;
 import com.spellstorm.math.Vector2D;
 
+import com.spellstorm.world.FloatingOriginAware;
 import com.spellstorm.world.TileMap;
 
 import java.util.ArrayList;
@@ -18,7 +19,7 @@ import java.util.Random;
  * Handles procedural ground spawning, collision detection, 5-second gameplay timer updating,
  * pause suspension, recollection policy, and combat modifiers.
  */
-public class PowerUpManager {
+public class PowerUpManager implements FloatingOriginAware {
 
     public static final float DEFAULT_MIN_SPAWN_INTERVAL = 12.0f;
     public static final float DEFAULT_MAX_SPAWN_INTERVAL = 20.0f;
@@ -349,5 +350,23 @@ public class PowerUpManager {
 
     public float getNextSpawnTimer() {
         return nextSpawnTimer;
+    }
+
+    public void rebase(float deltaX, float deltaY) {
+        for (int i = 0; i < pickups.size(); i++) {
+            WorldPowerUp p = pickups.get(i);
+            if (p != null && p.isAlive()) {
+                p.rebase(deltaX, deltaY);
+            }
+        }
+        if (arenaBounds != null) {
+            arenaBounds.x -= deltaX;
+            arenaBounds.y -= deltaY;
+        }
+    }
+
+    @Override
+    public void onOriginShift(long deltaX, long deltaY) {
+        rebase((float) deltaX, (float) deltaY);
     }
 }

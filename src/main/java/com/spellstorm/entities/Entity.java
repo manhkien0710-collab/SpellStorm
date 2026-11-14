@@ -3,6 +3,7 @@ package com.spellstorm.entities;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.spellstorm.assets.TextureManager;
 import com.spellstorm.math.Vector2D;
+import com.spellstorm.world.FloatingOriginAware;
 
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -18,7 +19,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * - Semantic tag classification.
  * - Decoupled headless-safe simulation lifecycle.
  */
-public abstract class Entity {
+public abstract class Entity implements FloatingOriginAware {
 
     private static final AtomicInteger ID_GENERATOR = new AtomicInteger(1);
 
@@ -186,6 +187,19 @@ public abstract class Entity {
         if (other == null || !this.active || !other.active) return false;
         float totalRadius = this.radius + other.radius;
         return this.position.dist2(other.position) <= (totalRadius * totalRadius);
+    }
+
+    /**
+     * Shifts the local world coordinates of this entity by (-deltaX, -deltaY)
+     * during a centralized atomic floating-origin shift.
+     */
+    public void rebase(float deltaX, float deltaY) {
+        this.position.sub(deltaX, deltaY);
+    }
+
+    @Override
+    public void onOriginShift(long deltaX, long deltaY) {
+        rebase((float) deltaX, (float) deltaY);
     }
 
     @Override

@@ -3,6 +3,7 @@ package com.spellstorm.systems;
 import com.spellstorm.entities.ExperiencePickup;
 import com.spellstorm.entities.Player;
 import com.spellstorm.math.Vector2D;
+import com.spellstorm.world.FloatingOriginAware;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -15,7 +16,7 @@ import java.util.List;
  * - Collision detection and EXP progression awarding.
  * - Pruning collected / inactive gems.
  */
-public class ExperienceSystem {
+public class ExperienceSystem implements FloatingOriginAware {
 
     public static final float MAGNET_RADIUS_MULTIPLIER = 2.80f;
     public static final float BASE_PULL_SPEED = 240.0f;
@@ -104,5 +105,19 @@ public class ExperienceSystem {
 
     public void clear() {
         pickups.clear();
+    }
+
+    public void rebase(float deltaX, float deltaY) {
+        for (int i = 0; i < pickups.size(); i++) {
+            ExperiencePickup p = pickups.get(i);
+            if (p != null && p.isAlive()) {
+                p.rebase(deltaX, deltaY);
+            }
+        }
+    }
+
+    @Override
+    public void onOriginShift(long deltaX, long deltaY) {
+        rebase((float) deltaX, (float) deltaY);
     }
 }

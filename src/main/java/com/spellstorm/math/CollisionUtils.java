@@ -260,6 +260,52 @@ public final class CollisionUtils {
         return resolveSliding(ox, oy, nx, ny, radius, mapW, mapH, traversable);
     }
 
+    /**
+     * Unbounded 2-pass sliding collision resolution without boundary clamping,
+     * supporting infinite 4-quadrant exploration (including negative coordinates).
+     *
+     * 1. Tests full candidate position (newX, newY) via traversability predicate.
+     * 2. If blocked, tests X-only movement (newX, oldY).
+     * 3. If blocked, tests Y-only movement (oldX, newY).
+     * 4. If blocked on both axes, returns old position (oldX, oldY).
+     */
+    public static Vector2D resolveSlidingUnbounded(float oldX, float oldY,
+                                                  float newX, float newY,
+                                                  float radius,
+                                                  TraversabilityPredicate traversable) {
+        if (traversable == null) {
+            return new Vector2D(newX, newY);
+        }
+
+        // 1. Try full diagonal move
+        if (traversable.isTraversable(newX, newY, radius)) {
+            return new Vector2D(newX, newY);
+        }
+
+        // 2. Try X movement only
+        if (traversable.isTraversable(newX, oldY, radius)) {
+            return new Vector2D(newX, oldY);
+        }
+
+        // 3. Try Y movement only
+        if (traversable.isTraversable(oldX, newY, radius)) {
+            return new Vector2D(oldX, newY);
+        }
+
+        // 4. Blocked on both axes: retain old position
+        return new Vector2D(oldX, oldY);
+    }
+
+    public static Vector2D resolveSlidingUnbounded(Vector2D oldPos, Vector2D newPos,
+                                                  float radius,
+                                                  TraversabilityPredicate traversable) {
+        float ox = oldPos != null ? oldPos.x : 0.0f;
+        float oy = oldPos != null ? oldPos.y : 0.0f;
+        float nx = newPos != null ? newPos.x : 0.0f;
+        float ny = newPos != null ? newPos.y : 0.0f;
+        return resolveSlidingUnbounded(ox, oy, nx, ny, radius, traversable);
+    }
+
     // =========================================================================
     // Spatial Bounds Clamping
     // =========================================================================

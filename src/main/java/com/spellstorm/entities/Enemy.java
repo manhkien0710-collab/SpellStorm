@@ -375,6 +375,35 @@ public abstract class Enemy extends Character {
         navWaypointIndex = 0;
     }
 
+    public Vector2D getNavLastPosition() {
+        return navLastPosition;
+    }
+
+    public Vector2D getNavLastTargetPos() {
+        return navLastTargetPos;
+    }
+
+    public void setNavPathForTesting(List<Vector2D> path) {
+        navPath.clear();
+        if (path != null) {
+            for (Vector2D p : path) {
+                navPath.add(p != null ? p.cpy() : new Vector2D());
+            }
+        }
+    }
+
+    public void setNavLastPositionForTesting(Vector2D pos) {
+        if (pos != null) {
+            navLastPosition.set(pos);
+        }
+    }
+
+    public void setNavLastTargetPosForTesting(Vector2D pos) {
+        if (pos != null) {
+            navLastTargetPos.set(pos);
+        }
+    }
+
     public float getAnimTimer() {
         return animTimer;
     }
@@ -393,5 +422,18 @@ public abstract class Enemy extends Character {
             this.facingLeft = velocity.x < -1.0f;
         }
         animTimer += dt;
+    }
+
+    @Override
+    public void rebase(float deltaX, float deltaY) {
+        super.rebase(deltaX, deltaY);
+        for (int i = 0; i < navPath.size(); i++) {
+            Vector2D wp = navPath.get(i);
+            if (wp != null) {
+                wp.sub(deltaX, deltaY);
+            }
+        }
+        navLastTargetPos.sub(deltaX, deltaY);
+        navLastPosition.sub(deltaX, deltaY);
     }
 }
