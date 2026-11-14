@@ -2,9 +2,9 @@ package com.spellstorm.world;
 
 import com.spellstorm.math.Vector2D;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Centralized, atomic floating-origin manager for SpellStorm infinite world simulation.
@@ -27,7 +27,7 @@ public class FloatingOriginManager {
     private int originChunkY = 0;
 
     private float rebaseThreshold = DEFAULT_REBASE_THRESHOLD;
-    private final List<FloatingOriginAware> listeners = new ArrayList<>();
+    private final CopyOnWriteArrayList<FloatingOriginAware> listeners = new CopyOnWriteArrayList<>();
 
     // Telemetry & metrics
     private long totalRebaseCount = 0L;
@@ -105,8 +105,7 @@ public class FloatingOriginManager {
         this.lastDeltaX = deltaX;
         this.lastDeltaY = deltaY;
 
-        for (int i = 0; i < listeners.size(); i++) {
-            FloatingOriginAware listener = listeners.get(i);
+        for (FloatingOriginAware listener : listeners) {
             if (listener != null) {
                 listener.onOriginShift(deltaX, deltaY);
             }
@@ -118,13 +117,15 @@ public class FloatingOriginManager {
     // =========================================================================
 
     public void registerListener(FloatingOriginAware listener) {
-        if (listener != null && !listeners.contains(listener)) {
-            listeners.add(listener);
+        if (listener != null) {
+            listeners.addIfAbsent(listener);
         }
     }
 
     public void unregisterListener(FloatingOriginAware listener) {
-        listeners.remove(listener);
+        if (listener != null) {
+            listeners.remove(listener);
+        }
     }
 
     public void clearListeners() {
@@ -145,6 +146,14 @@ public class FloatingOriginManager {
 
     public long toGlobalPixelY(float localY) {
         return (long) Math.floor(localY) + originShiftY;
+    }
+
+    public double toGlobalDoubleX(float localX) {
+        return (double) localX + originShiftX;
+    }
+
+    public double toGlobalDoubleY(float localY) {
+        return (double) localY + originShiftY;
     }
 
     public float toLocalPixelX(long globalX) {
