@@ -46,6 +46,7 @@ public class InfiniteWorld implements WorldGrid, FloatingOriginAware {
         this.originManager = originManager;
         if (originManager != null) {
             originManager.registerListener(this);
+            originManager.registerListener(chunkManager);
         }
     }
 

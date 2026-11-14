@@ -153,9 +153,6 @@ public class ChunkImpl implements Chunk {
             return false;
         }
 
-        long originX = (long) chunkX * 1024L;
-        long originY = (long) chunkY * 1024L;
-
         for (int i = 0; i < obstacles.size(); i++) {
             Obstacle obs = obstacles.get(i);
             if (!obs.isSolid() || obs.getCollisionRadius() <= 0.0f) {
@@ -164,22 +161,6 @@ public class ChunkImpl implements Chunk {
             Vector2D colCenter = obs.getCollisionCenter();
             float obsX = colCenter.x;
             float obsY = colCenter.y;
-
-            // Dual-coordinate tolerance: if obstacle was anchored in world space, normalize to local
-            if (originX != 0L) {
-                float minWorldX = (float) originX - 64.0f;
-                float maxWorldX = (float) originX + 1024.0f + 64.0f;
-                if (obsX >= minWorldX && obsX <= maxWorldX) {
-                    obsX -= (float) originX;
-                }
-            }
-            if (originY != 0L) {
-                float minWorldY = (float) originY - 64.0f;
-                float maxWorldY = (float) originY + 1024.0f + 64.0f;
-                if (obsY >= minWorldY && obsY <= maxWorldY) {
-                    obsY -= (float) originY;
-                }
-            }
 
             float totalRadius = radius + obs.getCollisionRadius();
             float dx = localX - obsX;

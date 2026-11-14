@@ -2,10 +2,14 @@ package com.spellstorm.world;
 
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.math.Rectangle;
+import com.badlogic.gdx.utils.LongMap;
 import com.spellstorm.camera.GameCamera;
 import com.spellstorm.math.Vector2D;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
 import java.util.function.BiFunction;
 
 /**
@@ -15,7 +19,9 @@ import java.util.function.BiFunction;
  * <ul>
  *   <li><b>4-Ring Chunk Lifecycle</b>: State A (Visible), State B (Preloaded perimeter),
  *       State C (Active simulation bubble), and State D (Cached inactive).</li>
- *   <li><b>Strict LRU Caching</b>: Bounded {@link LinkedHashMap} eviction protecting active rings.</li>
+ *   <li><b>Zero-Allocation LRU Caching</b>: Primitive-keyed {@link LongMap} with doubly-linked list
+ *       and node pooling, guaranteeing zero heap allocations during lookups in any quadrant.</li>
+ *   <li><b>Memoized Fast Path</b>: Single-chunk memoization for consecutive intra-chunk tile queries.</li>
  *   <li><b>Authoritative Frustum Culling</b>: Exact dynamic zoom coverage across [0.75, 2.25] zoom range.</li>
  *   <li><b>Zero-Garbage Streaming</b>: Reusable internal buffers with zero per-frame heap allocations.</li>
  * </ul>
@@ -24,12 +30,35 @@ public class ChunkManagerImpl implements ChunkManager {
 
     public static final float HALO_MARGIN_PX = 64.0f; // 2 tiles overhanging canopy margin
 
+    private static final class CacheEntry {
+        long key;
+        Chunk chunk;
+        int activeTag = -1;
+        CacheEntry prev;
+        CacheEntry next;
+
+        CacheEntry(long key, Chunk chunk) {
+            this.key = key;
+            this.chunk = chunk;
+            this.activeTag = -1;
+        }
+    }
+
     private final BiFunction<Integer, Integer, Chunk> chunkGenerator;
-    private final LinkedHashMap<Long, Chunk> lruCache;
-    private final Map<Long, ChunkDelta> deltaStore;
+    private final LongMap<CacheEntry> cache;
+    private final LongMap<ChunkDelta> deltaStore;
+    private final List<CacheEntry> entryPool;
+
+    private CacheEntry head; // Most recently used
+    private CacheEntry tail; // Least recently used
+
+    // Memoized fast path for repetitive spatial queries
+    private long lastChunkKey = Long.MIN_VALUE;
+    private Chunk lastChunk = null;
 
     private int cacheCapacity;
     private int simulationRadius = DEFAULT_SIMULATION_RADIUS;
+    private int currentStreamingTag = 0;
 
     private long originShiftX = 0L;
     private long originShiftY = 0L;
@@ -38,7 +67,6 @@ public class ChunkManagerImpl implements ChunkManager {
     private final List<Chunk> visibleChunks = new ArrayList<>(16);
     private final List<Chunk> preloadedChunks = new ArrayList<>(32);
     private final List<Chunk> activeSimulationChunks = new ArrayList<>(25);
-    private final Set<Long> activeKeys = new HashSet<>(64);
 
     private final List<Chunk> unmodifiableVisible = Collections.unmodifiableList(visibleChunks);
     private final List<Chunk> unmodifiablePreloaded = Collections.unmodifiableList(preloadedChunks);
@@ -63,8 +91,9 @@ public class ChunkManagerImpl implements ChunkManager {
     public ChunkManagerImpl(BiFunction<Integer, Integer, Chunk> chunkGenerator, int capacity) {
         this.chunkGenerator = Objects.requireNonNull(chunkGenerator, "Chunk generator cannot be null");
         this.cacheCapacity = Math.max(MIN_CACHE_CAPACITY, Math.min(capacity, MAX_CACHE_CAPACITY));
-        this.lruCache = new LinkedHashMap<>(this.cacheCapacity + 16, 0.75f, true);
-        this.deltaStore = new HashMap<>();
+        this.cache = new LongMap<>(this.cacheCapacity * 2);
+        this.deltaStore = new LongMap<>();
+        this.entryPool = new ArrayList<>(this.cacheCapacity + 16);
     }
 
     @Override
@@ -74,18 +103,36 @@ public class ChunkManagerImpl implements ChunkManager {
 
     @Override
     public Chunk getChunk(long chunkKey) {
-        Chunk chunk = lruCache.get(chunkKey);
-        if (chunk == null) {
-            int cx = ChunkKey.getX(chunkKey);
-            int cy = ChunkKey.getY(chunkKey);
-            chunk = chunkGenerator.apply(cx, cy);
-
-            ChunkDelta delta = deltaStore.get(chunkKey);
-            if (delta != null) {
-                chunk.applyDelta(delta);
-            }
-            lruCache.put(chunkKey, chunk);
+        // Fast path 1: Memoized intra-chunk query
+        if (chunkKey == lastChunkKey && lastChunk != null) {
+            return lastChunk;
         }
+
+        // Fast path 2: Cache hit via primitive LongMap (0 allocations)
+        CacheEntry entry = cache.get(chunkKey);
+        if (entry != null) {
+            moveToHead(entry);
+            lastChunkKey = chunkKey;
+            lastChunk = entry.chunk;
+            return entry.chunk;
+        }
+
+        // Cache miss: generate chunk on demand
+        int cx = ChunkKey.getX(chunkKey);
+        int cy = ChunkKey.getY(chunkKey);
+        Chunk chunk = chunkGenerator.apply(cx, cy);
+
+        ChunkDelta delta = deltaStore.get(chunkKey);
+        if (delta != null) {
+            chunk.applyDelta(delta);
+        }
+
+        entry = obtainEntry(chunkKey, chunk);
+        addToHead(entry);
+        cache.put(chunkKey, entry);
+
+        lastChunkKey = chunkKey;
+        lastChunk = chunk;
         return chunk;
     }
 
@@ -103,7 +150,8 @@ public class ChunkManagerImpl implements ChunkManager {
         visibleChunks.clear();
         preloadedChunks.clear();
         activeSimulationChunks.clear();
-        activeKeys.clear();
+
+        currentStreamingTag++;
 
         // 1. Identify State A (Visible Chunks) from Camera
         int visMinCx = 0, visMaxCx = -1, visMinCy = 0, visMaxCy = -1;
@@ -129,7 +177,7 @@ public class ChunkManagerImpl implements ChunkManager {
                     long key = ChunkKey.of(cx, cy);
                     Chunk chunk = getChunk(key);
                     visibleChunks.add(chunk);
-                    activeKeys.add(key);
+                    markActive(key);
                 }
             }
 
@@ -147,7 +195,7 @@ public class ChunkManagerImpl implements ChunkManager {
                     long key = ChunkKey.of(cx, cy);
                     Chunk chunk = getChunk(key);
                     preloadedChunks.add(chunk);
-                    activeKeys.add(key);
+                    markActive(key);
                 }
             }
         }
@@ -166,7 +214,7 @@ public class ChunkManagerImpl implements ChunkManager {
                     long key = ChunkKey.of(scx, scy);
                     Chunk chunk = getChunk(key);
                     activeSimulationChunks.add(chunk);
-                    activeKeys.add(key);
+                    markActive(key);
                 }
             }
         }
@@ -175,19 +223,96 @@ public class ChunkManagerImpl implements ChunkManager {
         pruneInactiveChunks();
     }
 
+    private void markActive(long chunkKey) {
+        CacheEntry entry = cache.get(chunkKey);
+        if (entry != null) {
+            entry.activeTag = currentStreamingTag;
+        }
+    }
+
     private void pruneInactiveChunks() {
-        if (lruCache.size() <= cacheCapacity) {
+        if (cache.size <= cacheCapacity) {
             return;
         }
 
-        Iterator<Map.Entry<Long, Chunk>> iterator = lruCache.entrySet().iterator();
-        while (iterator.hasNext() && lruCache.size() > cacheCapacity) {
-            Map.Entry<Long, Chunk> entry = iterator.next();
-            long key = entry.getKey();
-            if (!activeKeys.contains(key)) {
+        CacheEntry curr = tail;
+        while (curr != null && cache.size > cacheCapacity) {
+            CacheEntry prev = curr.prev;
+            if (curr.activeTag != currentStreamingTag) {
                 // Eldest inactive chunk evicted
-                iterator.remove();
+                unlink(curr);
+                cache.remove(curr.key);
+                if (curr.key == lastChunkKey) {
+                    lastChunkKey = Long.MIN_VALUE;
+                    lastChunk = null;
+                }
+                recycleEntry(curr);
             }
+            curr = prev;
+        }
+    }
+
+    // =========================================================================
+    // Doubly-Linked List & Node Recycling (Zero Allocation)
+    // =========================================================================
+
+    private void addToHead(CacheEntry entry) {
+        entry.prev = null;
+        entry.next = head;
+        if (head != null) {
+            head.prev = entry;
+        }
+        head = entry;
+        if (tail == null) {
+            tail = entry;
+        }
+    }
+
+    private void moveToHead(CacheEntry entry) {
+        if (entry == head) {
+            return;
+        }
+        unlink(entry);
+        addToHead(entry);
+    }
+
+    private void unlink(CacheEntry entry) {
+        if (entry.prev != null) {
+            entry.prev.next = entry.next;
+        } else {
+            head = entry.next;
+        }
+
+        if (entry.next != null) {
+            entry.next.prev = entry.prev;
+        } else {
+            tail = entry.prev;
+        }
+
+        entry.prev = null;
+        entry.next = null;
+    }
+
+    private CacheEntry obtainEntry(long key, Chunk chunk) {
+        if (!entryPool.isEmpty()) {
+            CacheEntry reused = entryPool.remove(entryPool.size() - 1);
+            reused.key = key;
+            reused.chunk = chunk;
+            reused.activeTag = -1;
+            reused.prev = null;
+            reused.next = null;
+            return reused;
+        }
+        return new CacheEntry(key, chunk);
+    }
+
+    private void recycleEntry(CacheEntry entry) {
+        entry.chunk = null;
+        entry.activeTag = -1;
+        entry.prev = null;
+        entry.next = null;
+        if (entryPool.size() < cacheCapacity + 32) {
+            entryPool.add(entry);
         }
     }
 
@@ -266,7 +391,7 @@ public class ChunkManagerImpl implements ChunkManager {
 
     @Override
     public int getLoadedChunkCount() {
-        return lruCache.size();
+        return cache.size;
     }
 
     @Override
@@ -294,10 +419,14 @@ public class ChunkManagerImpl implements ChunkManager {
 
     @Override
     public void clear() {
-        lruCache.clear();
+        cache.clear();
+        head = null;
+        tail = null;
+        lastChunkKey = Long.MIN_VALUE;
+        lastChunk = null;
         visibleChunks.clear();
         preloadedChunks.clear();
         activeSimulationChunks.clear();
-        activeKeys.clear();
+        entryPool.clear();
     }
 }

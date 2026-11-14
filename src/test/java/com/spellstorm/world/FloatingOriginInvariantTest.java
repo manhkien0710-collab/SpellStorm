@@ -285,4 +285,24 @@ public class FloatingOriginInvariantTest {
         assertEquals(0.0f, originManager.toLocalPixelX(extremeGlobalX), 1e-3f);
         assertEquals(0.0f, originManager.toLocalPixelY(extremeGlobalY), 1e-3f);
     }
+
+    @Test
+    @DisplayName("10. InfiniteWorld constructor automatically registers chunkManager with originManager")
+    void testInfiniteWorldRegistersChunkManagerAsOriginListener() {
+        FloatingOriginManager originMgr = new FloatingOriginManager();
+        ChunkManager chunkMgr = new ChunkManagerImpl(12345L, 64);
+        InfiniteWorld infiniteWorld = new InfiniteWorld(chunkMgr, originMgr);
+
+        assertTrue(originMgr.getListeners().contains(infiniteWorld),
+                "InfiniteWorld must be registered as origin listener");
+        assertTrue(originMgr.getListeners().contains(chunkMgr),
+                "ChunkManager must be automatically registered as origin listener");
+
+        // Trigger atomic rebase
+        originMgr.rebaseWorldOrigin(1024L, 2048L);
+        assertEquals(1024L, chunkMgr.getOriginShiftX(),
+                "ChunkManager originShiftX must synchronize with originManager");
+        assertEquals(2048L, chunkMgr.getOriginShiftY(),
+                "ChunkManager originShiftY must synchronize with originManager");
+    }
 }
