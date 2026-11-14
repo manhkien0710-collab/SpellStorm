@@ -285,10 +285,13 @@ public class HeadlessTestRunner implements BeforeAllCallback {
             return false;
         }
 
-        // Integrity check: Reject any directory path referencing the reference C++ project
-        String absPath = dir.getAbsolutePath().replace('\\', '/');
-        if (absPath.contains("/SpellStorm/assets") && !absPath.contains("/SpellStorm-Java/assets")) {
-            System.err.println("[HeadlessTestRunner] REJECTED external reference asset directory: " + absPath);
+        // Integrity check: Reject an external C++ reference repo directory (has CMakeLists.txt without build.gradle)
+        File parentDir = dir.getAbsoluteFile().getParentFile();
+        boolean isExternalCppRepo = parentDir != null
+                && new File(parentDir, "CMakeLists.txt").exists()
+                && !new File(parentDir, "build.gradle").exists();
+        if (isExternalCppRepo) {
+            System.err.println("[HeadlessTestRunner] REJECTED external reference asset directory: " + dir.getAbsolutePath());
             return false;
         }
 
