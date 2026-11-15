@@ -421,4 +421,223 @@ public class FloatingOriginAdversarialStressTest {
         assertTrue(l2Called.get(), "Listener 2 MUST be called even if Listener 1 unregisters during callback! (No missed callbacks)");
         assertTrue(l3Called.get(), "Listener 3 MUST be called even if Listener 1 unregisters during callback! (No missed callbacks)");
     }
+
+    @Test
+    @DisplayName("Challenge 4.3: Listener 2 unregisters during callback does not prevent Listener 3 from receiving callback")
+    void testListener2UnregistersDuringCallback() {
+        originManager.clearListeners();
+        AtomicBoolean l1Called = new AtomicBoolean(false);
+        AtomicBoolean l2Called = new AtomicBoolean(false);
+        AtomicBoolean l3Called = new AtomicBoolean(false);
+
+        FloatingOriginAware l1 = (dx, dy) -> l1Called.set(true);
+        FloatingOriginAware l2 = new FloatingOriginAware() {
+            @Override
+            public void onOriginShift(long deltaX, long deltaY) {
+                l2Called.set(true);
+                originManager.unregisterListener(this);
+            }
+        };
+        FloatingOriginAware l3 = (dx, dy) -> l3Called.set(true);
+
+        originManager.registerListener(l1);
+        originManager.registerListener(l2);
+        originManager.registerListener(l3);
+
+        assertDoesNotThrow(() -> originManager.rebaseWorldOrigin(1024L, 1024L));
+
+        assertTrue(l1Called.get(), "Listener 1 must be called");
+        assertTrue(l2Called.get(), "Listener 2 must be called");
+        assertTrue(l3Called.get(), "Listener 3 must be called even if Listener 2 unregistered during its callback");
+        assertEquals(2, originManager.getListeners().size(), "Listener 2 should be removed from registered listeners");
+        assertFalse(originManager.getListeners().contains(l2), "Listener 2 must no longer be present");
+        assertTrue(originManager.getListeners().contains(l1), "Listener 1 must still be present");
+        assertTrue(originManager.getListeners().contains(l3), "Listener 3 must still be present");
+    }
+
+    @Test
+    @DisplayName("Challenge 4.4: All listeners unregister during callback without throwing CME or skipping")
+    void testAllListenersUnregisterDuringCallback() {
+        originManager.clearListeners();
+        int count = 10;
+        List<AtomicBoolean> called = new ArrayList<>();
+
+        for (int i = 0; i < count; i++) {
+            AtomicBoolean cb = new AtomicBoolean(false);
+            called.add(cb);
+            FloatingOriginAware listener = new FloatingOriginAware() {
+                @Override
+                public void onOriginShift(long deltaX, long deltaY) {
+                    cb.set(true);
+                    originManager.unregisterListener(this);
+                }
+            };
+            originManager.registerListener(listener);
+        }
+
+        assertEquals(count, originManager.getListeners().size());
+
+        assertDoesNotThrow(() -> originManager.rebaseWorldOrigin(2048L, -2048L));
+
+        for (int i = 0; i < count; i++) {
+            assertTrue(called.get(i).get(), "Listener " + i + " must have been called");
+        }
+        assertTrue(originManager.getListeners().isEmpty(), "All listeners should now be unregistered");
+    }
+
+    @Test
+    @DisplayName("Challenge 4.5: New listener registers during callback does not cause CME or infinite loop")
+    void testNewListenerRegistersDuringCallback() {
+        originManager.clearListeners();
+        AtomicBoolean l1Called = new AtomicBoolean(false);
+        AtomicBoolean l2Called = new AtomicBoolean(false);
+        AtomicBoolean newListenerCalled = new AtomicBoolean(false);
+
+        FloatingOriginAware newListener = (dx, dy) -> newListenerCalled.set(true);
+
+        FloatingOriginAware l1 = new FloatingOriginAware() {
+            @Override
+            public void onOriginShift(long deltaX, long deltaY) {
+                l1Called.set(true);
+                // Register new listener during active callback
+                originManager.registerListener(newListener);
+            }
+        };
+
+        FloatingOriginAware l2 = (dx, dy) -> l2Called.set(true);
+
+        originManager.registerListener(l1);
+        originManager.registerListener(l2);
+
+        assertDoesNotThrow(() -> originManager.rebaseWorldOrigin(1024L, 512L));
+
+        assertTrue(l1Called.get(), "Listener 1 must be called");
+        assertTrue(l2Called.get(), "Listener 2 must be called");
+        // Because CopyOnWriteArrayList snapshot iteration is used, newListener was NOT in the initial snapshot
+        assertFalse(newListenerCalled.get(), "New listener registered during callback should NOT be invoked in the current rebase pass");
+        assertTrue(originManager.getListeners().contains(newListener), "New listener must be registered for future passes");
+
+        // Verify that on the next rebase, newListener IS called
+        originManager.rebaseWorldOrigin(512L, 512L);
+        assertTrue(newListenerCalled.get(), "New listener must be called on subsequent rebase");
+    }
+
+    @Test
+    @DisplayName("Challenge 2.2: Diagonal projectile trajectory preservation across multiple mid-flight rebases")
+    void testDiagonalProjectileTrajectoryPreservation() {
+        Vector2D startPos = new Vector2D(50.0f, 50.0f);
+        Vector2D dir = new Vector2D(1.0f, 1.0f).nor(); // 45 degree diagonal
+        float speed = 400.0f;
+        float radius = 6.0f;
+        float targetRadius = 14.0f;
+        Vector2D targetPos = new Vector2D(startPos.x + dir.x * speed * 0.8f, startPos.y + dir.y * speed * 0.8f);
+
+        // Ground truth: unshifted
+        int collisionFrameUnshifted = -1;
+        Vector2D unshiftedCollisionPos = null;
+        float dt = 1.0f / 60.0f;
+        {
+            Vector2D pPos = startPos.cpy();
+            for (int f = 0; f < 100; f++) {
+                pPos.add(dir.x * speed * dt, dir.y * speed * dt);
+                if (pPos.dist(targetPos) <= (radius + targetRadius)) {
+                    collisionFrameUnshifted = f;
+                    unshiftedCollisionPos = pPos.cpy();
+                    break;
+                }
+            }
+        }
+        assertTrue(collisionFrameUnshifted > 0, "Unshifted projectile must collide");
+
+        // Shifted simulation
+        FloatingOriginManager simOrigin = new FloatingOriginManager();
+        CombatSystem simCombat = new CombatSystem();
+        Enemy enemy = new MeleeEnemy(targetPos.cpy());
+        enemy.setRadius(targetRadius);
+
+        Projectile proj = new Projectile(startPos.cpy(), dir.cpy(), speed, radius, 20.0f, 5.0f, 1,
+                ProjectileFaction.PLAYER, null, null);
+        simCombat.addProjectile(proj);
+        simOrigin.registerListener(simCombat);
+        simOrigin.registerListener(enemy);
+
+        int collisionFrameShifted = -1;
+        Vector2D shiftedGlobalPos = null;
+        for (int f = 0; f < 100; f++) {
+            // Rebase mid-flight in various directions
+            if (f == 8) simOrigin.rebaseWorldOrigin(-2048L, 1024L);
+            if (f == 20) simOrigin.rebaseWorldOrigin(4096L, -4096L);
+            if (f == 35) simOrigin.rebaseWorldOrigin(-10000L, 20000L);
+
+            proj.update(dt);
+
+            if (proj.getPosition().dist(enemy.getPosition()) <= (radius + targetRadius)) {
+                collisionFrameShifted = f;
+                shiftedGlobalPos = new Vector2D(
+                        proj.getPosition().x + (float) simOrigin.getOriginShiftX(),
+                        proj.getPosition().y + (float) simOrigin.getOriginShiftY()
+                );
+                break;
+            }
+        }
+
+        assertEquals(collisionFrameUnshifted, collisionFrameShifted, "Diagonal projectile must intercept at exact same frame");
+        assertNotNull(shiftedGlobalPos);
+        assertEquals(unshiftedCollisionPos.x, shiftedGlobalPos.x, 0.05f);
+        assertEquals(unshiftedCollisionPos.y, shiftedGlobalPos.y, 0.05f);
+    }
+
+    @Test
+    @DisplayName("Challenge 1.2: Rapid alternating oscillating shifts preserves pairwise distance invariance across 1000 cycles")
+    void testRapidAlternatingOscillatingShiftsPreservesRelativeDistances() {
+        Player player = new Player(new Vector2D(200.0f, 300.0f));
+        GameCamera camera = new GameCamera(1280.0f, 720.0f);
+        camera.setClampingEnabled(false);
+        camera.setCenter(200.0f, 300.0f);
+        Enemy enemy = new MeleeEnemy(new Vector2D(500.0f, 600.0f));
+
+        originManager.registerListener(player);
+        originManager.registerListener(camera);
+        originManager.registerListener(enemy);
+
+        float initialDist = player.getPosition().dist(enemy.getPosition());
+        float initialCamDist = new Vector2D(camera.getCenterX(), camera.getCenterY()).dist(player.getPosition());
+
+        Random rng = new Random(42);
+        for (int i = 0; i < 1000; i++) {
+            long dx = (rng.nextBoolean() ? 1L : -1L) * (1024L * (rng.nextInt(10) + 1));
+            long dy = (rng.nextBoolean() ? 1L : -1L) * (1024L * (rng.nextInt(10) + 1));
+            originManager.rebaseWorldOrigin(dx, dy);
+
+            float d = player.getPosition().dist(enemy.getPosition());
+            assertEquals(initialDist, d, 0.005f, "Distance between player and enemy must remain invariant at step " + i);
+
+            float cd = new Vector2D(camera.getCenterX(), camera.getCenterY()).dist(player.getPosition());
+            assertEquals(initialCamDist, cd, 0.005f, "Distance between camera and player must remain invariant at step " + i);
+        }
+    }
+
+    @Test
+    @DisplayName("Challenge 3.3: ChunkManager synchronization under 1000 random shifts and return to zero")
+    void testChunkManagerSynchronizationStress() {
+        Random rng = new Random(777);
+        for (int i = 0; i < 1000; i++) {
+            long dx = (rng.nextInt(200) - 100) * 1024L;
+            long dy = (rng.nextInt(200) - 100) * 1024L;
+            originManager.rebaseWorldOrigin(dx, dy);
+
+            assertEquals(originManager.getOriginShiftX(), chunkManager.getOriginShiftX(), "Sync failure at step " + i);
+            assertEquals(originManager.getOriginShiftY(), chunkManager.getOriginShiftY(), "Sync failure at step " + i);
+        }
+
+        // Return origin to zero via rebase
+        long curX = originManager.getOriginShiftX();
+        long curY = originManager.getOriginShiftY();
+        originManager.rebaseWorldOrigin(-curX, -curY);
+
+        assertEquals(0L, originManager.getOriginShiftX());
+        assertEquals(0L, originManager.getOriginShiftY());
+        assertEquals(0L, chunkManager.getOriginShiftX());
+        assertEquals(0L, chunkManager.getOriginShiftY());
+    }
 }

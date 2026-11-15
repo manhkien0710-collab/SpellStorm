@@ -21,9 +21,14 @@ import com.spellstorm.entities.TankEnemy;
 import com.spellstorm.math.Vector2D;
 import com.spellstorm.systems.BalanceConfig;
 import com.spellstorm.systems.PowerUpType;
+import com.spellstorm.world.BiomeType;
+import com.spellstorm.world.Chunk;
+import com.spellstorm.world.ChunkManager;
 import com.spellstorm.world.DecoType;
+import com.spellstorm.world.Obstacle;
 import com.spellstorm.world.TileMap;
 import com.spellstorm.world.TileType;
+import com.spellstorm.world.WorldGrid;
 
 /**
  * Main application coordinator extending LibGDX Game.
@@ -63,11 +68,28 @@ public class SpellStormGame extends Game {
             this.textureManager.loadAll();
             this.fontManager = new FontManager();
             this.fontManager.initialize();
-            this.session = GameSession.createPhase2Session(
-                    SpellRegistry.createDefaultRegistry(),
-                    config.getSeed(),
-                    config.isDebugMode()
-            );
+            boolean isFiniteScenario = config.isTileMapMode()
+                    || config.isScenarioM2Prototype()
+                    || config.isScenarioM5Boss()
+                    || config.isScenarioM5Elements()
+                    || config.isTestBridge()
+                    || config.isTestRuins()
+                    || config.isTestCampsite()
+                    || config.isTestBoss();
+
+            if (isFiniteScenario) {
+                this.session = GameSession.createPhase2Session(
+                        SpellRegistry.createDefaultRegistry(),
+                        config.getSeed(),
+                        config.isDebugMode()
+                );
+            } else {
+                this.session = GameSession.createInfiniteSession(
+                        SpellRegistry.createDefaultRegistry(),
+                        config.getSeed(),
+                        config.isDebugMode()
+                );
+            }
             applyConfiguredScenarios(this.session, this.config);
             GameScreen gameScreen = new GameScreen(this, session, textureManager, fontManager);
             applyScreenScenarios(gameScreen, this.session, this.config);
@@ -154,6 +176,14 @@ public class SpellStormGame extends Game {
 
         if (cfg.isScenarioM5Elements()) {
             setupM5ElementsScenario(targetSession);
+        }
+
+        if (cfg.hasScenario("exploration-plains")) {
+            setupExplorationPlainsScenario(targetSession);
+        } else if (cfg.hasScenario("exploration-forest")) {
+            setupExplorationForestScenario(targetSession);
+        } else if (cfg.hasScenario("exploration-radar")) {
+            setupExplorationRadarScenario(targetSession);
         }
 
         if (cfg.isTestLevelUp()) {
@@ -331,6 +361,107 @@ public class SpellStormGame extends Game {
                 12.0f, 2.2f, 0, ProjectileFaction.ENEMY,
                 new com.badlogic.gdx.graphics.Color(0.85f, 0.35f, 1.0f, 1.0f),
                 new com.badlogic.gdx.graphics.Color(1.0f, 0.7f, 1.0f, 1.0f), null));
+    }
+
+    private static void setupExplorationPlainsScenario(GameSession targetSession) {
+        WorldGrid worldGrid = targetSession.getWorldGrid();
+        float targetX = 0.0f;
+        float targetY = 0.0f;
+        for (int r = 1; r < 80; r++) {
+            for (int dx = -r; dx <= r; dx++) {
+                int tx = dx;
+                int ty = r;
+                if (worldGrid.getTile(tx, ty) == TileType.GRASS &&
+                        (worldGrid.getTile(tx + 2, ty) == TileType.WATER || worldGrid.getTile(tx - 2, ty) == TileType.WATER)) {
+                    targetX = tx * 32.0f;
+                    targetY = ty * 32.0f;
+                    break;
+                }
+            }
+            if (targetX != 0.0f || targetY != 0.0f) break;
+        }
+
+        Vector2D playerPos = new Vector2D(targetX, targetY);
+        targetSession.getPlayer().setPosition(playerPos);
+        targetSession.getCamera().setCenter(playerPos.x, playerPos.y);
+
+        BalanceConfig balance = BalanceConfig.defaults();
+        MeleeEnemy fiend = new MeleeEnemy(playerPos.cpy().add(180.0f, -40.0f));
+        RangedEnemy cultist = new RangedEnemy(playerPos.cpy().add(-210.0f, 60.0f));
+        balance.applyToEnemy(fiend);
+        balance.applyToEnemy(cultist);
+        targetSession.addEnemy(fiend);
+        targetSession.addEnemy(cultist);
+
+        targetSession.getExperienceSystem().spawnPickup(playerPos.cpy().add(110.0f, 25.0f), 10);
+        targetSession.getExperienceSystem().spawnPickup(playerPos.cpy().add(140.0f, -50.0f), 20);
+        targetSession.getPowerUpManager().spawnPickup(playerPos.cpy().add(-110.0f, -45.0f), PowerUpType.ARCANE_OVERDRIVE);
+    }
+
+    private static void setupExplorationForestScenario(GameSession targetSession) {
+        float targetX = 1500.0f;
+        float targetY = 1500.0f;
+        if (targetSession.getInfiniteWorld() != null) {
+            ChunkManager cm = targetSession.getInfiniteWorld().getChunkManager();
+            for (int cy = 1; cy <= 12; cy++) {
+                for (int cx = 1; cx <= 12; cx++) {
+                    Chunk chunk = cm.getChunk(cx, cy);
+                    if (chunk != null) {
+                        boolean hasTrees = false;
+                        for (int i = 0; i < chunk.getObstacleCount(); i++) {
+                            Obstacle o = chunk.getObstacle(i);
+                            if (o.getType() == DecoType.TREE_OAK || o.getType() == DecoType.TREE_PINE) {
+                                hasTrees = true;
+                                break;
+                            }
+                        }
+                        if (hasTrees) {
+                            targetX = cx * 1024.0f + 512.0f;
+                            targetY = cy * 1024.0f + 512.0f;
+                            break;
+                        }
+                    }
+                }
+                if (targetX != 1500.0f || targetY != 1500.0f) break;
+            }
+        }
+
+        Vector2D playerPos = new Vector2D(targetX, targetY);
+        targetSession.getPlayer().setPosition(playerPos);
+        targetSession.getCamera().setCenter(playerPos.x, playerPos.y);
+
+        BalanceConfig balance = BalanceConfig.defaults();
+        MeleeEnemy fiend = new MeleeEnemy(playerPos.cpy().add(170.0f, 80.0f));
+        TankEnemy golem = new TankEnemy(playerPos.cpy().add(-200.0f, -60.0f));
+        balance.applyToEnemy(fiend);
+        balance.applyToEnemy(golem);
+        targetSession.addEnemy(fiend);
+        targetSession.addEnemy(golem);
+
+        targetSession.getExperienceSystem().spawnPickup(playerPos.cpy().add(250.0f, -135.0f), 20);
+        targetSession.getExperienceSystem().spawnPickup(playerPos.cpy().add(-280.0f, 155.0f), 40);
+        targetSession.getPowerUpManager().spawnPickup(playerPos.cpy().add(180.0f, -120.0f), PowerUpType.ELEMENTAL_BURST);
+    }
+
+    private static void setupExplorationRadarScenario(GameSession targetSession) {
+        Vector2D playerPos = targetSession.getPlayer().getPosition();
+        targetSession.getCamera().setCenter(playerPos.x, playerPos.y);
+
+        BalanceConfig balance = BalanceConfig.defaults();
+        for (int i = 0; i < 8; i++) {
+            float ang = (float) (i * 2.0 * Math.PI / 8.0);
+            float dist = 320.0f + (i % 3) * 120.0f;
+            Vector2D pos = playerPos.cpy().add((float) Math.cos(ang) * dist, (float) Math.sin(ang) * dist);
+            Enemy e = (i % 2 == 0) ? new MeleeEnemy(pos) : new RangedEnemy(pos);
+            balance.applyToEnemy(e);
+            targetSession.addEnemy(e);
+        }
+        BossEnemy boss = new BossEnemy(playerPos.cpy().add(600.0f, 350.0f));
+        balance.applyToEnemy(boss);
+        targetSession.addEnemy(boss);
+
+        targetSession.getPowerUpManager().spawnPickup(playerPos.cpy().add(-280.0f, 220.0f), PowerUpType.PIERCING_SURGE);
+        targetSession.getPowerUpManager().spawnPickup(playerPos.cpy().add(350.0f, -260.0f), PowerUpType.ARCANE_OVERDRIVE);
     }
 
     private static void movePlayerToTile(GameSession targetSession, TileType primary, TileType fallback) {

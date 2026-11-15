@@ -14,6 +14,7 @@ import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.math.Rectangle;
 import com.spellstorm.assets.AssetRegistry.TextureId;
 import com.spellstorm.assets.FontManager;
 import com.spellstorm.assets.TextureManager;
@@ -45,6 +46,7 @@ import com.spellstorm.ui.TitleScreen;
 import com.spellstorm.ui.TutorialOverlay;
 import com.spellstorm.ui.ViewportManager;
 import com.spellstorm.world.DecoType;
+import com.spellstorm.world.FloatingOriginAware;
 import com.spellstorm.world.Obstacle;
 import com.spellstorm.world.TileMap;
 
@@ -61,7 +63,7 @@ import java.util.Set;
  * Primary gameplay screen orchestrating the interactive rendering pipeline,
  * FitViewport scaling/unprojection, shell screens, overlays, and desktop input.
  */
-public class GameScreen implements Screen, InputProcessor {
+public class GameScreen implements Screen, InputProcessor, FloatingOriginAware {
 
     private enum SettingsReturnTarget {
         TITLE,
@@ -226,6 +228,22 @@ public class GameScreen implements Screen, InputProcessor {
     }
 
     @Override
+    public void onOriginShift(long deltaX, long deltaY) {
+        float dx = (float) deltaX;
+        float dy = (float) deltaY;
+        for (VisualEffectInstance vfx : activeVisualEffects) {
+            if (vfx != null && vfx.position != null) {
+                vfx.position.sub(dx, dy);
+            }
+        }
+        for (TrackedProjectile tp : trackedProjectiles.values()) {
+            if (tp != null && tp.lastPosition != null) {
+                tp.lastPosition.sub(dx, dy);
+            }
+        }
+    }
+
+    @Override
     public void show() {
         if (game != null) {
             this.batch = game.getBatch();
@@ -237,6 +255,9 @@ public class GameScreen implements Screen, InputProcessor {
         }
         if (Gdx.input != null) {
             Gdx.input.setInputProcessor(this);
+        }
+        if (session != null && session.getOriginManager() != null) {
+            session.getOriginManager().registerListener(this);
         }
     }
 
@@ -331,7 +352,7 @@ public class GameScreen implements Screen, InputProcessor {
 
         // A. Terrain Tiles
         batch.begin();
-        session.getTileMap().drawTerrain(batch, textureManager, camera, renderAnimElapsed);
+        session.getWorldGrid().drawTerrain(batch, textureManager, camera, renderAnimElapsed);
         batch.end();
 
         // B. Ground Shadows, Pickup Halos & Subtle Projectile Under-Glows
@@ -385,11 +406,9 @@ public class GameScreen implements Screen, InputProcessor {
     private void renderGroundShadows(ShapeRenderer sr, GameCamera camera) {
         sr.setColor(0.0f, 0.0f, 0.0f, 0.26f);
 
-        for (Obstacle obs : session.getTileMap().getObstacles()) {
-            if (camera != null && !camera.isVisible(obs.getVisualBounds())) {
-                continue;
-            }
-            renderPropGroundShadow(sr, obs);
+        List<Obstacle> visibleObstacles = session.getWorldGrid().getVisibleObstacles(camera);
+        for (int i = 0; i < visibleObstacles.size(); i++) {
+            renderPropGroundShadow(sr, visibleObstacles.get(i));
         }
 
         sr.setColor(0.0f, 0.0f, 0.0f, 0.28f);
@@ -443,15 +462,32 @@ public class GameScreen implements Screen, InputProcessor {
     }
 
     private void renderYDepthSortedWorld(SpriteBatch b, GameCamera camera) {
-        TileMap tileMap = session.getTileMap();
+        List<Obstacle> visibleObstacles = session.getWorldGrid().getVisibleObstacles(camera);
         List<DepthSortedEntry> entries = buildYDepthSortedEntries(
-                tileMap.getObstacles(), session.getEnemies(), session.getPlayer(), camera);
-        for (DepthSortedEntry entry : entries) {
+                visibleObstacles, session.getEnemies(), session.getPlayer(), camera);
+        for (int i = 0; i < entries.size(); i++) {
+            DepthSortedEntry entry = entries.get(i);
             switch (entry.getKind()) {
-                case OBSTACLE -> tileMap.drawDecoration(b, textureManager, entry.getObstacle(), renderAnimElapsed);
+                case OBSTACLE -> renderObstacleDecoration(b, entry.getObstacle(), renderAnimElapsed);
                 case ENEMY -> renderSingleEnemy(b, entry.getEnemy());
                 case PLAYER -> renderPlayer(b);
             }
+        }
+    }
+
+    private void renderObstacleDecoration(SpriteBatch batch, Obstacle obstacle, float elapsed) {
+        if (obstacle == null || batch == null || textureManager == null || Gdx.gl == null) return;
+        Rectangle bounds = obstacle.getVisualBounds();
+        TextureRegion region = null;
+        if (obstacle.getType() == DecoType.CAMPFIRE && textureManager.hasExtendedSheet(ExtendedSheetId.CAMPFIRE_ANIM)) {
+            int frame = ((int) (Math.max(0.0f, elapsed) / 0.12f)) % 4;
+            region = textureManager.getExtendedFrame(ExtendedSheetId.CAMPFIRE_ANIM, frame);
+        }
+        if (region == null) {
+            region = textureManager.getRegion(obstacle.getType().getTextureId());
+        }
+        if (region != null) {
+            drawRegion(batch, region, bounds.x, bounds.y, bounds.width, bounds.height);
         }
     }
 
@@ -833,11 +869,10 @@ public class GameScreen implements Screen, InputProcessor {
         if (!textureManager.hasExtendedSheet(ExtendedSheetId.VFX_FIRE_IMPACT)) {
             return;
         }
-        for (Obstacle obs : session.getTileMap().getObstacles()) {
+        List<Obstacle> visibleObstacles = session.getWorldGrid().getVisibleObstacles(camera);
+        for (int i = 0; i < visibleObstacles.size(); i++) {
+            Obstacle obs = visibleObstacles.get(i);
             if (obs.getType() != DecoType.CAMPFIRE) {
-                continue;
-            }
-            if (camera != null && !camera.isVisible(obs.getVisualBounds())) {
                 continue;
             }
             Vector2D pos = obs.getPosition();
@@ -1081,7 +1116,7 @@ public class GameScreen implements Screen, InputProcessor {
                 powerUpPositionsBuffer.add(wp.getPosition());
             }
         }
-        minimapRenderer.renderMinimap(shapeRenderer, batch, fontManager, session.getTileMap(),
+        minimapRenderer.renderMinimap(shapeRenderer, batch, fontManager, session.getWorldGrid(),
                 session.getPlayer().getPosition(), enemyPositionsBuffer, bossPositionsBuffer,
                 powerUpPositionsBuffer, session.getCamera().getVisibleBounds(), true);
 
@@ -1534,6 +1569,9 @@ public class GameScreen implements Screen, InputProcessor {
     public void hide() {
         if (Gdx.input != null && Gdx.input.getInputProcessor() == this) {
             Gdx.input.setInputProcessor(null);
+        }
+        if (session != null && session.getOriginManager() != null) {
+            session.getOriginManager().unregisterListener(this);
         }
     }
 

@@ -27,11 +27,18 @@ import com.spellstorm.systems.UpgradeInfo;
 import com.spellstorm.systems.UpgradeManager;
 import com.spellstorm.ui.GameOverOverlay;
 import com.spellstorm.ui.LevelUpOverlay;
+import com.spellstorm.world.ChunkManagerImpl;
+import com.spellstorm.world.FloatingOriginAware;
+import com.spellstorm.world.FloatingOriginManager;
+import com.spellstorm.world.InfiniteWorld;
 import com.spellstorm.world.TileMap;
+import com.spellstorm.world.TileMapAdapter;
+import com.spellstorm.world.WorldGrid;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Random;
 
 /**
@@ -44,12 +51,22 @@ import java.util.Random;
  * - Enemy defeat reward claiming, experience drops, and level-up queue.
  * - World power-up pickups, 5-second temporary ability lifecycle, and combat modifiers.
  * - Deterministic, idempotent match restart restoring all game state across match cycles.
+ * - Dual-world mode support: bounded TileMap vs unbounded procedural InfiniteWorld.
  */
-public class GameSession {
+public class GameSession implements FloatingOriginAware {
 
     public static final float BASE_PLAYER_PROJECTILE_SPEED = 280.0f;
 
+    public enum WorldMode {
+        TILE_MAP,
+        INFINITE_WORLD
+    }
+
+    private final WorldMode worldMode;
+    private final WorldGrid worldGrid;
     private final TileMap tileMap;
+    private final InfiniteWorld infiniteWorld;
+    private final FloatingOriginManager originManager;
     private final Rectangle arenaBounds;
     private final SpellRegistry registry;
     private final Random rng;
@@ -89,28 +106,48 @@ public class GameSession {
     private String modeNotificationText = "";
 
     // =========================================================================
-    // Constructors & Phase 2 Factory
+    // Constructors & Factories (Dual-Mode: TileMap vs InfiniteWorld)
     // =========================================================================
 
-    private GameSession(TileMap tileMap, SpellRegistry registry, long seed,
-                        boolean startInTitle, boolean debugMode, boolean usePhase2Systems) {
+    private GameSession(WorldGrid worldGrid, TileMap tileMap, InfiniteWorld infiniteWorld,
+                        SpellRegistry registry, long seed, boolean startInTitle,
+                        boolean debugMode, boolean usePhase2Systems) {
         this.seed = seed;
-        this.tileMap = tileMap != null ? tileMap : new TileMap(seed);
-        this.arenaBounds = new Rectangle(this.tileMap.getWorldBounds());
+        this.worldGrid = Objects.requireNonNull(worldGrid, "WorldGrid cannot be null");
+        this.tileMap = tileMap;
+        this.infiniteWorld = infiniteWorld;
+        this.worldMode = (infiniteWorld != null) ? WorldMode.INFINITE_WORLD : WorldMode.TILE_MAP;
+        this.originManager = (infiniteWorld != null) ? infiniteWorld.getOriginManager() : null;
+        this.arenaBounds = (worldGrid.isBounded()) ? new Rectangle(worldGrid.getWorldBounds()) : null;
         this.registry = (registry != null) ? registry : SpellRegistry.createDefaultRegistry();
         this.rng = new Random(seed);
         this.debugMode = debugMode;
 
-        Vector2D center = new Vector2D(arenaBounds.x + arenaBounds.width * 0.5f,
-                                      arenaBounds.y + arenaBounds.height * 0.5f);
-        this.player = new Player(center);
+        Vector2D initialPlayerPos = (arenaBounds != null)
+                ? new Vector2D(arenaBounds.x + arenaBounds.width * 0.5f, arenaBounds.y + arenaBounds.height * 0.5f)
+                : new Vector2D(0.0f, 0.0f); // Crossroads of E-W Highway & N-S Trail
+        this.player = new Player(initialPlayerPos);
         this.camera = new GameCamera(1280.0f, 720.0f);
-        this.combatSystem = new CombatSystem(arenaBounds);
+        if (arenaBounds != null) {
+            this.camera.setWorldBounds(arenaBounds.x, arenaBounds.y, arenaBounds.width, arenaBounds.height);
+            this.camera.setClampingEnabled(true);
+        } else {
+            this.camera.setWorldBounds(-50_000_000f, -50_000_000f, 100_000_000f, 100_000_000f);
+            this.camera.setClampingEnabled(false);
+        }
+
+        Rectangle combatBounds = (arenaBounds != null)
+                ? arenaBounds
+                : new Rectangle(-50_000_000f, -50_000_000f, 100_000_000f, 100_000_000f);
+        this.combatSystem = new CombatSystem(combatBounds);
         this.experienceSystem = new ExperienceSystem();
         this.progression = new PlayerProgression(1);
         this.upgradeManager = new UpgradeManager();
-        this.powerUpManager = new PowerUpManager(arenaBounds, rng);
-        this.powerUpManager.setTileMap(this.tileMap);
+        this.powerUpManager = new PowerUpManager(combatBounds, rng);
+        if (this.tileMap != null) {
+            this.powerUpManager.setTileMap(this.tileMap);
+        }
+
         if (usePhase2Systems) {
             this.spawner = new EnemySpawner(this.tileMap, rng, BalanceConfig.defaults());
             this.separationSystem = new EnemySeparationSystem();
@@ -119,7 +156,19 @@ public class GameSession {
             this.separationSystem = null;
         }
         this.spawner.setCamera(camera);
-        this.pathfinder = new com.spellstorm.navigation.AStarPathfinder(this.tileMap);
+        this.pathfinder = (this.tileMap != null)
+                ? new com.spellstorm.navigation.AStarPathfinder(this.tileMap)
+                : null;
+
+        // Register FloatingOriginAware listeners
+        if (this.originManager != null) {
+            this.originManager.registerListener(this.player);
+            this.originManager.registerListener(this.camera);
+            this.originManager.registerListener(this.combatSystem);
+            this.originManager.registerListener(this.experienceSystem);
+            this.originManager.registerListener(this.powerUpManager);
+            this.originManager.registerListener(this); // for active enemies
+        }
 
         restartMatch();
         if (startInTitle) {
@@ -128,7 +177,8 @@ public class GameSession {
     }
 
     public GameSession(TileMap tileMap, SpellRegistry registry, long seed) {
-        this(tileMap, registry, seed, false, true, false);
+        this(new TileMapAdapter(tileMap != null ? tileMap : new TileMap(seed)),
+             tileMap != null ? tileMap : new TileMap(seed), null, registry, seed, false, true, false);
     }
 
     public GameSession(Rectangle bounds, SpellRegistry registry, long seed) {
@@ -150,7 +200,8 @@ public class GameSession {
      */
     public static GameSession createPhase2Session(SpellRegistry registry, Long explicitSeed, boolean debugMode) {
         long resolvedSeed = (explicitSeed != null) ? explicitSeed : new Random().nextLong();
-        return new GameSession(new TileMap(resolvedSeed), registry, resolvedSeed, true, debugMode, true);
+        TileMap map = new TileMap(resolvedSeed);
+        return new GameSession(new TileMapAdapter(map), map, null, registry, resolvedSeed, true, debugMode, true);
     }
 
     public static GameSession createPhase2Session(SpellRegistry registry, Long explicitSeed) {
@@ -159,6 +210,26 @@ public class GameSession {
 
     public static GameSession createPhase2Session() {
         return createPhase2Session(null, null, false);
+    }
+
+    /**
+     * Creates an InfiniteWorld application session starting on the Title Screen (GameState.START)
+     * with chunk streaming, centralized floating origin manager, and unbounded exploration.
+     */
+    public static GameSession createInfiniteSession(SpellRegistry registry, Long explicitSeed, boolean debugMode) {
+        long resolvedSeed = (explicitSeed != null) ? explicitSeed : new Random().nextLong();
+        ChunkManagerImpl chunkManager = new ChunkManagerImpl(resolvedSeed, 64);
+        FloatingOriginManager originMgr = new FloatingOriginManager();
+        InfiniteWorld infiniteWorld = new InfiniteWorld(chunkManager, originMgr);
+        return new GameSession(infiniteWorld, null, infiniteWorld, registry, resolvedSeed, true, debugMode, true);
+    }
+
+    public static GameSession createInfiniteSession(SpellRegistry registry, Long explicitSeed) {
+        return createInfiniteSession(registry, explicitSeed, false);
+    }
+
+    public static GameSession createInfiniteSession() {
+        return createInfiniteSession(null, null, false);
     }
 
     // =========================================================================
@@ -180,8 +251,13 @@ public class GameSession {
      * Completely and deterministically restores all match state for a fresh game.
      */
     public void restartMatch() {
-        Vector2D center = new Vector2D(arenaBounds.x + arenaBounds.width * 0.5f,
-                                      arenaBounds.y + arenaBounds.height * 0.5f);
+        Vector2D center = (arenaBounds != null)
+                ? new Vector2D(arenaBounds.x + arenaBounds.width * 0.5f, arenaBounds.y + arenaBounds.height * 0.5f)
+                : new Vector2D(0.0f, 0.0f);
+
+        if (originManager != null) {
+            originManager.reset();
+        }
 
         // 1. Reset player vital statistics, modifiers, position, alive flag
         player.resetPlayer(center);
@@ -460,10 +536,18 @@ public class GameSession {
             modeNotificationTimer = Math.max(0.0f, modeNotificationTimer - dt);
         }
 
+        // 1. Centralized atomic origin check and chunk streaming
+        if (originManager != null && infiniteWorld != null) {
+            originManager.checkAndRebase(player.getPosition());
+            infiniteWorld.getChunkManager().updateStreaming(player.getPosition(), camera);
+        }
+
         // Player update, sliding collision resolution, and boundary clamping
-        player.handleInput(dt, tileMap);
+        player.handleInput(dt, worldGrid);
         player.update(dt);
-        constrainEntityToBounds(player);
+        if (arenaBounds != null) {
+            constrainEntityToBounds(player);
+        }
 
         // Camera smoothly follows player
         camera.update(player.getPosition().x, player.getPosition().y, dt);
@@ -498,7 +582,9 @@ public class GameSession {
             }
             enemy.updateAI(dt, player.getPosition(), tileMap, pathfinder);
             enemy.update(dt);
-            constrainEntityToBounds(enemy);
+            if (arenaBounds != null) {
+                constrainEntityToBounds(enemy);
+            }
         }
 
         // Crowd separation pass (Phase 2)
@@ -593,8 +679,18 @@ public class GameSession {
         update(dt, player.getPosition(), player.getPosition(), false);
     }
 
+    @Override
+    public void onOriginShift(long deltaX, long deltaY) {
+        for (int i = 0; i < enemies.size(); i++) {
+            Enemy enemy = enemies.get(i);
+            if (enemy != null && enemy.isAlive()) {
+                enemy.onOriginShift(deltaX, deltaY);
+            }
+        }
+    }
+
     private void constrainEntityToBounds(com.spellstorm.entities.Entity e) {
-        if (e == null) return;
+        if (e == null || arenaBounds == null) return;
         Vector2D pos = e.getPosition();
         float r = e.getRadius();
         float minX = arenaBounds.x + r;
@@ -679,7 +775,12 @@ public class GameSession {
     public GameCamera camera() { return camera; }
 
     public TileMap getTileMap() { return tileMap; }
-    public Rectangle getArenaBounds() { return new Rectangle(arenaBounds); }
+    public Rectangle getArenaBounds() { return arenaBounds != null ? new Rectangle(arenaBounds) : null; }
+    public WorldGrid getWorldGrid() { return worldGrid; }
+    public InfiniteWorld getInfiniteWorld() { return infiniteWorld; }
+    public FloatingOriginManager getOriginManager() { return originManager; }
+    public WorldMode getWorldMode() { return worldMode; }
+    public boolean isInfiniteMode() { return worldMode == WorldMode.INFINITE_WORLD; }
 
     public List<Enemy> getEnemies() { return Collections.unmodifiableList(enemies); }
     public List<Enemy> enemies() { return Collections.unmodifiableList(enemies); }

@@ -10,7 +10,9 @@ import com.spellstorm.assets.FontManager;
 import com.spellstorm.math.MathUtils;
 import com.spellstorm.math.Vector2D;
 import com.spellstorm.world.TileMap;
+import com.spellstorm.world.TileMapAdapter;
 import com.spellstorm.world.TileType;
+import com.spellstorm.world.WorldGrid;
 
 import java.util.List;
 
@@ -38,6 +40,9 @@ public class MinimapRenderer {
     public static final Color COLOR_TILE_WATER = new Color(45f / 255f, 115f / 255f, 195f / 255f, 180f / 255f);
     public static final Color COLOR_TILE_DIRT = new Color(120f / 255f, 100f / 255f, 70f / 255f, 150f / 255f);
     public static final Color COLOR_TILE_STONE = new Color(140f / 255f, 150f / 255f, 170f / 255f, 180f / 255f);
+    public static final Color COLOR_TILE_GRASS = new Color(55f / 255f, 105f / 255f, 45f / 255f, 140f / 255f);
+    public static final Color COLOR_TILE_SAND = new Color(210f / 255f, 190f / 255f, 120f / 255f, 180f / 255f);
+    public static final float DEFAULT_RADAR_SPAN = 4096.0f; // 128 tiles span, radius = 2048 px
     public static final Color COLOR_ENEMY_BLIP = new Color(255f / 255f, 60f / 255f, 60f / 255f, 1.0f);
     public static final Color COLOR_PLAYER_MARKER = new Color(60f / 255f, 220f / 255f, 255f / 255f, 1.0f);
     public static final Color COLOR_LABEL = new Color(160f / 255f, 190f / 255f, 230f / 255f, 1.0f);
@@ -106,24 +111,48 @@ public class MinimapRenderer {
 
     /**
      * Renders the minimap with tile subsampling, player marker, and enemy dots.
+     * Supports polymorphic world spatial providers: WorldGrid, TileMap, or null.
      */
     public void renderMinimap(ShapeRenderer shapeRenderer, SpriteBatch batch,
-                              FontManager fontManager, TileMap tileMap,
+                              FontManager fontManager, Object worldGridOrTileMap,
                               Vector2D playerPos, List<Vector2D> enemyPositions,
                               boolean yDown) {
-        renderMinimap(shapeRenderer, batch, fontManager, tileMap, playerPos,
+        renderMinimap(shapeRenderer, batch, fontManager, worldGridOrTileMap, playerPos,
                 enemyPositions, null, null, null, yDown);
     }
 
     /**
-     * Phase 2 minimap renderer supporting boss markers, power-up markers, camera viewport box,
-     * and an external label banner strictly above the minimap box.
+     * Dual-mode minimap renderer:
+     * - For bounded worlds (TileMap / TileMapAdapter), renders the legacy fixed 128x128 map.
+     * - For unbounded worlds (InfiniteWorld), renders a dynamic local radar window centered on player.
      */
     public void renderMinimap(ShapeRenderer shapeRenderer, SpriteBatch batch,
-                              FontManager fontManager, TileMap tileMap,
+                              FontManager fontManager, Object worldGridOrTileMap,
                               Vector2D playerPos, List<Vector2D> enemyPositions,
                               List<Vector2D> bossPositions, List<Vector2D> powerUpPositions,
                               Rectangle cameraVisibleBounds, boolean yDown) {
+        if (worldGridOrTileMap instanceof WorldGrid worldGrid && !worldGrid.isBounded()) {
+            renderRadarMinimap(shapeRenderer, batch, fontManager, worldGrid, playerPos,
+                    enemyPositions, bossPositions, powerUpPositions, cameraVisibleBounds, yDown);
+            return;
+        }
+
+        TileMap tileMap = null;
+        if (worldGridOrTileMap instanceof TileMap tm) {
+            tileMap = tm;
+        } else if (worldGridOrTileMap instanceof TileMapAdapter adapter) {
+            tileMap = adapter.getTileMap();
+        }
+
+        renderTileMapMinimap(shapeRenderer, batch, fontManager, tileMap, playerPos,
+                enemyPositions, bossPositions, powerUpPositions, cameraVisibleBounds, yDown);
+    }
+
+    private void renderTileMapMinimap(ShapeRenderer shapeRenderer, SpriteBatch batch,
+                                      FontManager fontManager, TileMap tileMap,
+                                      Vector2D playerPos, List<Vector2D> enemyPositions,
+                                      List<Vector2D> bossPositions, List<Vector2D> powerUpPositions,
+                                      Rectangle cameraVisibleBounds, boolean yDown) {
         Rectangle bounds = getMinimapBounds(yDown);
         Rectangle labelBounds = getMinimapLabelBounds(yDown);
         final float worldW = (tileMap != null) ? tileMap.getWorldWidth() : 4096.0f;
@@ -245,6 +274,178 @@ public class MinimapRenderer {
                 batch.begin();
                 font.setColor(COLOR_LABEL);
                 String label = "MAP [OVERWORLD]";
+                glyphLayout.setText(font, label);
+                float labelX = labelBounds.x + (labelBounds.width - glyphLayout.width) * 0.5f;
+                float labelY = yDown
+                        ? (labelBounds.y + (labelBounds.height - glyphLayout.height) * 0.5f)
+                        : (labelBounds.y + (labelBounds.height + glyphLayout.height) * 0.5f);
+                font.draw(batch, label, labelX, labelY);
+                batch.end();
+            }
+        }
+    }
+
+    private void renderRadarMinimap(ShapeRenderer shapeRenderer, SpriteBatch batch,
+                                    FontManager fontManager, WorldGrid worldGrid,
+                                    Vector2D playerPos, List<Vector2D> enemyPositions,
+                                    List<Vector2D> bossPositions, List<Vector2D> powerUpPositions,
+                                    Rectangle cameraVisibleBounds, boolean yDown) {
+        Rectangle bounds = getMinimapBounds(yDown);
+        Rectangle labelBounds = getMinimapLabelBounds(yDown);
+
+        final float radarSpan = DEFAULT_RADAR_SPAN;
+        final float halfSpan = radarSpan * 0.5f;
+        final float scaleX = bounds.width / radarSpan;
+        final float scaleY = bounds.height / radarSpan;
+
+        final float centerWorldX = playerPos != null ? playerPos.x : 0.0f;
+        final float centerWorldY = playerPos != null ? playerPos.y : 0.0f;
+        final float centerMinimapX = bounds.x + bounds.width * 0.5f;
+        final float centerMinimapY = bounds.y + bounds.height * 0.5f;
+
+        if (shapeRenderer != null) {
+            // 1. Background fill
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+            shapeRenderer.setColor(COLOR_MINIMAP_BG);
+            shapeRenderer.rect(bounds.x, bounds.y, bounds.width, bounds.height);
+            shapeRenderer.setColor(COLOR_LABEL_BG);
+            shapeRenderer.rect(labelBounds.x, labelBounds.y, labelBounds.width, labelBounds.height);
+
+            // 2. Subsampled dynamic radar terrain cells (32x32)
+            final int steps = 32;
+            final float cellW = bounds.width / (float) steps;
+            final float cellH = bounds.height / (float) steps;
+            final float worldStep = radarSpan / (float) steps;
+
+            for (int iy = 0; iy < steps; iy++) {
+                float sampleWy = (centerWorldY - halfSpan) + (iy + 0.5f) * worldStep;
+                int ty = worldGrid.worldToTileY(sampleWy);
+                float tileScreenY = yDown
+                        ? bounds.y + iy * cellH
+                        : bounds.y + (steps - 1 - iy) * cellH;
+
+                for (int ix = 0; ix < steps; ix++) {
+                    float sampleWx = (centerWorldX - halfSpan) + (ix + 0.5f) * worldStep;
+                    int tx = worldGrid.worldToTileX(sampleWx);
+                    TileType t = worldGrid.getTile(tx, ty);
+
+                    Color tileColor = null;
+                    if (t == TileType.WATER) {
+                        tileColor = COLOR_TILE_WATER;
+                    } else if (t == TileType.DIRT || t == TileType.BRIDGE_H || t == TileType.BRIDGE_V) {
+                        tileColor = COLOR_TILE_DIRT;
+                    } else if (t == TileType.STONE) {
+                        tileColor = COLOR_TILE_STONE;
+                    } else if (t == TileType.SAND) {
+                        tileColor = COLOR_TILE_SAND;
+                    } else if (t == TileType.GRASS) {
+                        tileColor = COLOR_TILE_GRASS;
+                    }
+
+                    if (tileColor != null) {
+                        shapeRenderer.setColor(tileColor);
+                        float tileScreenX = bounds.x + ix * cellW;
+                        shapeRenderer.rect(tileScreenX, tileScreenY, cellW, cellH);
+                    }
+                }
+            }
+
+            // 3. Enemy blips
+            if (enemyPositions != null) {
+                shapeRenderer.setColor(COLOR_ENEMY_BLIP);
+                for (int i = 0; i < enemyPositions.size(); i++) {
+                    Vector2D ePos = enemyPositions.get(i);
+                    if (ePos == null) continue;
+                    float dx = ePos.x - centerWorldX;
+                    float dy = ePos.y - centerWorldY;
+                    if (Math.abs(dx) <= halfSpan && Math.abs(dy) <= halfSpan) {
+                        float ex = centerMinimapX + dx * scaleX;
+                        float ey = yDown ? (centerMinimapY + dy * scaleY) : (centerMinimapY - dy * scaleY);
+                        shapeRenderer.circle(ex, ey, 2.0f);
+                    }
+                }
+            }
+
+            // 4. Power-up markers
+            if (powerUpPositions != null) {
+                shapeRenderer.setColor(COLOR_POWERUP_MARKER);
+                for (int i = 0; i < powerUpPositions.size(); i++) {
+                    Vector2D pPos = powerUpPositions.get(i);
+                    if (pPos == null) continue;
+                    float dx = pPos.x - centerWorldX;
+                    float dy = pPos.y - centerWorldY;
+                    if (Math.abs(dx) <= halfSpan && Math.abs(dy) <= halfSpan) {
+                        float px = centerMinimapX + dx * scaleX;
+                        float py = yDown ? (centerMinimapY + dy * scaleY) : (centerMinimapY - dy * scaleY);
+                        shapeRenderer.rect(px - 2.5f, py - 2.5f, 5.0f, 5.0f);
+                    }
+                }
+            }
+
+            // 5. Boss markers
+            if (bossPositions != null) {
+                for (int i = 0; i < bossPositions.size(); i++) {
+                    Vector2D bPos = bossPositions.get(i);
+                    if (bPos == null) continue;
+                    float dx = bPos.x - centerWorldX;
+                    float dy = bPos.y - centerWorldY;
+                    if (Math.abs(dx) <= halfSpan && Math.abs(dy) <= halfSpan) {
+                        float bx = centerMinimapX + dx * scaleX;
+                        float by = yDown ? (centerMinimapY + dy * scaleY) : (centerMinimapY - dy * scaleY);
+                        shapeRenderer.setColor(COLOR_BOSS_MARKER);
+                        shapeRenderer.circle(bx, by, 4.5f);
+                        shapeRenderer.setColor(COLOR_ENEMY_BLIP);
+                        shapeRenderer.circle(bx, by, 2.5f);
+                    }
+                }
+            }
+
+            // 6. Player marker at exact radar center
+            shapeRenderer.setColor(COLOR_PLAYER_MARKER);
+            shapeRenderer.circle(centerMinimapX, centerMinimapY, 3.5f);
+            shapeRenderer.setColor(Color.WHITE);
+            shapeRenderer.circle(centerMinimapX, centerMinimapY, 1.5f);
+
+            shapeRenderer.end();
+
+            // 7. Camera viewport box
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+            if (cameraVisibleBounds != null) {
+                float camCenterX = cameraVisibleBounds.x + cameraVisibleBounds.width * 0.5f;
+                float camCenterY = cameraVisibleBounds.y + cameraVisibleBounds.height * 0.5f;
+                float dx = camCenterX - centerWorldX;
+                float dy = camCenterY - centerWorldY;
+                float vpW = cameraVisibleBounds.width * scaleX;
+                float vpH = cameraVisibleBounds.height * scaleY;
+                float vpx = centerMinimapX + dx * scaleX - vpW * 0.5f;
+                float vpy = yDown
+                        ? (centerMinimapY + dy * scaleY - vpH * 0.5f)
+                        : (centerMinimapY - dy * scaleY - vpH * 0.5f);
+
+                float left = MathUtils.clamp(vpx, bounds.x, bounds.x + bounds.width);
+                float right = MathUtils.clamp(vpx + vpW, bounds.x, bounds.x + bounds.width);
+                float top = MathUtils.clamp(vpy, bounds.y, bounds.y + bounds.height);
+                float bottom = MathUtils.clamp(vpy + vpH, bounds.y, bounds.y + bounds.height);
+                if (right > left && bottom > top) {
+                    shapeRenderer.setColor(COLOR_VIEWPORT_RECT);
+                    shapeRenderer.rect(left, top, right - left, bottom - top);
+                }
+            }
+
+            // Minimap border frames
+            shapeRenderer.setColor(COLOR_MINIMAP_BORDER);
+            shapeRenderer.rect(bounds.x, bounds.y, bounds.width, bounds.height);
+            shapeRenderer.rect(labelBounds.x, labelBounds.y, labelBounds.width, labelBounds.height);
+            shapeRenderer.end();
+        }
+
+        // 8. Label text banner
+        if (batch != null && fontManager != null) {
+            BitmapFont font = (fontManager.fontSmall != null) ? fontManager.fontSmall : fontManager.fontRegular;
+            if (font != null) {
+                batch.begin();
+                font.setColor(COLOR_LABEL);
+                String label = "RADAR [INFINITE]";
                 glyphLayout.setText(font, label);
                 float labelX = labelBounds.x + (labelBounds.width - glyphLayout.width) * 0.5f;
                 float labelY = yDown

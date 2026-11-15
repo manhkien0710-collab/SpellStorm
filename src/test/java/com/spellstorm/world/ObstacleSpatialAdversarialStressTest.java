@@ -419,4 +419,125 @@ public class ObstacleSpatialAdversarialStressTest {
         assertTrue(manager.getLoadedChunkCount() <= capacity,
                 "Final loaded chunk count must not exceed capacity (" + capacity + ")");
     }
+
+    @Test
+    @DisplayName("Challenge 2.3: Zero heap allocation under 50,000 spatial queries with active non-zero Floating Origin shift")
+    void testZeroAllocation50kSpatialQueriesWithFloatingOriginShift() {
+        java.lang.management.ThreadMXBean baseBean = ManagementFactory.getThreadMXBean();
+        if (!(baseBean instanceof com.sun.management.ThreadMXBean bean) || !bean.isThreadAllocatedMemorySupported()) {
+            return;
+        }
+
+        ChunkManager cm = new ChunkManagerImpl(999999L, 128);
+        InfiniteWorld testWorld = new InfiniteWorld(cm, originManager);
+
+        // Rebase world origin: shift origin by (-10240, 20480)
+        originManager.rebaseWorldOrigin(-10240L, 20480L);
+
+        int[][] chunks = {
+                {1, 1}, {-2, 3}, {10, -5}, {-8, -8},
+                {0, 2}, {-3, 0}, {7, 7}, {-15, 12}
+        };
+
+        // In local coordinates, for entity to be in chunk c, localX = c[0] * 1024 - originShiftX
+        long shiftX = originManager.getOriginShiftX();
+        long shiftY = originManager.getOriginShiftY();
+
+        // Pre-warm cache for all target chunks and their 8 neighbors
+        for (int[] c : chunks) {
+            for (int dy = -1; dy <= 1; dy++) {
+                for (int dx = -1; dx <= 1; dx++) {
+                    cm.getChunk(c[0] + dx, c[1] + dy);
+                }
+            }
+        }
+
+        // Warmup JIT loop
+        for (int i = 0; i < 20000; i++) {
+            int[] c = chunks[i & 7];
+            float localX = (float) ((long) c[0] * 1024L - shiftX) + 200.0f + (i % 500);
+            float localY = (float) ((long) c[1] * 1024L - shiftY) + 200.0f + (i % 500);
+            testWorld.isTraversable(localX, localY, 16.0f);
+        }
+
+        long threadId = Thread.currentThread().threadId();
+        long beforeAlloc = bean.getThreadAllocatedBytes(threadId);
+
+        for (int i = 0; i < 50000; i++) {
+            int[] c = chunks[i & 7];
+            float localX = (float) ((long) c[0] * 1024L - shiftX) + 200.0f + (i % 500);
+            float localY = (float) ((long) c[1] * 1024L - shiftY) + 200.0f + (i % 500);
+            testWorld.isTraversable(localX, localY, 16.0f);
+        }
+
+        long afterAlloc = bean.getThreadAllocatedBytes(threadId);
+        long allocatedDelta = afterAlloc - beforeAlloc;
+
+        assertEquals(0L, allocatedDelta,
+                "50,000 spatial queries with active origin shift must allocate strictly 0 heap bytes, but allocated: " + allocatedDelta);
+    }
+
+    @Test
+    @DisplayName("Challenge 1.6: Sliding collision resolution smoothly slides along seam-crossing obstacle boundary without NaN or stuck states")
+    void testSlidingCollisionAcrossSeamWithObstacle() {
+        int cx = 1;
+        int cy = 0;
+        ChunkImpl chunk10 = new ChunkImpl(cx, cy);
+        // Obstacle right near west border of chunk (1, 0)
+        Obstacle rock = new Obstacle(DecoType.ROCK_LARGE, 10.0f, 500.0f, true);
+        chunk10.addObstacle(rock);
+
+        ChunkManager mockManager = new ChunkManagerImpl((qcx, qcy) -> {
+            if (qcx == 1 && qcy == 0) return chunk10;
+            return new ChunkImpl(qcx, qcy);
+        }, 64);
+        InfiniteWorld testWorld = new InfiniteWorld(mockManager, originManager);
+
+        // Player is at world (1015, 470) [near seam in chunk (0, 0)] moving diagonally towards (1034, 500)
+        float startX = 1015.0f;
+        float startY = 470.0f;
+        float targetX = 1034.0f;
+        float targetY = 500.0f;
+        float radius = 10.0f;
+
+        Vector2D resolved = testWorld.resolveCollision(startX, startY, targetX, targetY, radius);
+        assertNotNull(resolved);
+        assertFalse(Float.isNaN(resolved.x), "Resolved X must not be NaN");
+        assertFalse(Float.isNaN(resolved.y), "Resolved Y must not be NaN");
+        assertTrue(testWorld.isTraversable(resolved.x, resolved.y, radius),
+                "Resolved position (" + resolved.x + ", " + resolved.y + ") must be traversable");
+        // Entity should not penetrate the obstacle
+        float distToRock = (float) Math.hypot(resolved.x - 1034.0f, resolved.y - 500.0f);
+        assertTrue(distToRock >= (radius + rock.getCollisionRadius()) - 0.5f,
+                "Entity must not penetrate obstacle collision radius (dist=" + distToRock + ")");
+    }
+
+    @Test
+    @DisplayName("Challenge 3.4: 1,000 distinct chunk traversal with dynamic camera zoom variation")
+    void testLruCacheStress1000ChunksWithDynamicZoom() {
+        int capacity = 32;
+        ChunkManager manager = new ChunkManagerImpl((cx, cy) -> new ChunkImpl(cx, cy), capacity);
+
+        GameCamera camera = new GameCamera(1280.0f, 720.0f);
+        camera.setWorldBounds(-50_000_000f, -50_000_000f, 100_000_000f, 100_000_000f);
+
+        Vector2D playerPos = new Vector2D(0.0f, 0.0f);
+        float[] zoomLevels = {0.5f, 0.75f, 1.0f, 1.35f, 1.8f, 2.25f, 2.5f};
+
+        for (int i = -500; i < 500; i++) {
+            float worldX = (float) i * 1024.0f + 256.0f;
+            float worldY = (float) -i * 1024.0f + 256.0f;
+            playerPos.set(worldX, worldY);
+            camera.setCenter(worldX, worldY);
+            camera.setZoom(zoomLevels[Math.abs(i) % zoomLevels.length]);
+
+            manager.updateStreaming(playerPos, camera);
+
+            int loaded = manager.getLoadedChunkCount();
+            assertTrue(loaded <= capacity,
+                    "Loaded chunk count (" + loaded + ") exceeded capacity (" + capacity + ") at step " + i);
+        }
+
+        assertEquals(capacity, manager.getLoadedChunkCount(), "Cache should be fully saturated at capacity");
+    }
 }

@@ -34,6 +34,10 @@ public class EngineConfig {
     public static final String SCENARIO_M5_BOSS = "m5-boss";
     public static final String SCENARIO_M5_ELEMENTS = "m5-elements";
 
+    public static final String MODE_INFINITE = "infinite";
+    public static final String MODE_TILEMAP = "tilemap";
+
+    private final String mode;
     private final int windowWidth;
     private final int windowHeight;
     private final int targetFPS;
@@ -55,6 +59,7 @@ public class EngineConfig {
     }
 
     private EngineConfig(Builder builder) {
+        this.mode = builder.mode;
         this.windowWidth = builder.windowWidth;
         this.windowHeight = builder.windowHeight;
         this.targetFPS = builder.targetFPS;
@@ -80,6 +85,11 @@ public class EngineConfig {
                 case "--headless" -> builder.headless(true);
                 case "--autoplay" -> builder.autoplay(true);
                 case "--debug" -> builder.debugMode(true);
+                case "--mode" -> {
+                    if (i + 1 < args.length) {
+                        builder.mode(args[++i]);
+                    }
+                }
                 case "--test-level-up" -> builder.testLevelUp(true);
                 case "--test-game-over" -> builder.testGameOver(true);
                 case "--test-auto-shot" -> builder.testAutoShot(true);
@@ -149,6 +159,9 @@ public class EngineConfig {
     }
 
     // Getters
+    public String getMode() { return mode; }
+    public boolean isTileMapMode() { return MODE_TILEMAP.equalsIgnoreCase(mode); }
+    public boolean isInfiniteMode() { return !MODE_TILEMAP.equalsIgnoreCase(mode); }
     public int getWindowWidth() { return windowWidth; }
     public int getWindowHeight() { return windowHeight; }
     public int getTargetFPS() { return targetFPS; }
@@ -196,6 +209,7 @@ public class EngineConfig {
     public float getScreenshotAtSeconds() { return screenshotAtSeconds; }
 
     public static class Builder {
+        private String mode = MODE_INFINITE;
         private int windowWidth = DEFAULT_WIDTH;
         private int windowHeight = DEFAULT_HEIGHT;
         private int targetFPS = DEFAULT_FPS;
@@ -220,6 +234,9 @@ public class EngineConfig {
         public Builder autoplay(boolean v) { this.autoplay = v; return this; }
         public Builder debugMode(boolean v) { this.debugMode = v; return this; }
         public Builder seed(Long seed) { this.seed = seed; return this; }
+        public Builder mode(String mode) { this.mode = mode != null ? mode : MODE_INFINITE; return this; }
+        public Builder tileMapMode() { this.mode = MODE_TILEMAP; return this; }
+        public Builder infiniteMode() { this.mode = MODE_INFINITE; return this; }
 
         public Builder scenario(String name) {
             String norm = normalizeScenario(name);
