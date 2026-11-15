@@ -7,6 +7,7 @@ import com.spellstorm.combat.StatusEffectList;
 import com.spellstorm.combat.StatusKind;
 import com.spellstorm.math.MathUtils;
 import com.spellstorm.math.Vector2D;
+import com.spellstorm.world.WorldGrid;
 
 /**
  * Base class for all living, mobile entities in SpellStorm (Player and Enemies).
@@ -37,6 +38,7 @@ public abstract class Character extends Entity {
     protected final Vector2D knockback = new Vector2D();
     protected float speedMultiplier = 1.0f;
     protected final StatusEffectList statuses = new StatusEffectList();
+    protected WorldGrid activeWorldGrid;
 
     // =========================================================================
     // Constructors
@@ -222,8 +224,17 @@ public abstract class Character extends Entity {
         this.speedMultiplier = Math.max(0.0f, multiplier);
     }
 
+    public WorldGrid getActiveWorldGrid() {
+        return activeWorldGrid;
+    }
+
+    public void setActiveWorldGrid(WorldGrid activeWorldGrid) {
+        this.activeWorldGrid = activeWorldGrid;
+    }
+
     /**
      * Calculates combined velocity (desired move vector + knockback) and steps position.
+     * When activeWorldGrid is set, resolves sliding collision so water and obstacles block movement.
      */
     public void moveInDirection(Vector2D direction, float speedFactor, float dt) {
         if (!isAlive() || dt <= 0.0f) {
@@ -236,7 +247,18 @@ public abstract class Character extends Entity {
                 : new Vector2D();
 
         velocity.set(desired).add(knockback);
-        position.add(velocity.x * dt, velocity.y * dt);
+        float oldX = position.x;
+        float oldY = position.y;
+        float candX = oldX + velocity.x * dt;
+        float candY = oldY + velocity.y * dt;
+
+        if (activeWorldGrid != null) {
+            Vector2D resolved = activeWorldGrid.resolveCollision(oldX, oldY, candX, candY, radius);
+            position.set(resolved);
+            velocity.set((resolved.x - oldX) / dt, (resolved.y - oldY) / dt);
+        } else {
+            position.set(candX, candY);
+        }
         updateKnockback(dt);
     }
 

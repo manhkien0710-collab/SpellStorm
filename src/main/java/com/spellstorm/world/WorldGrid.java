@@ -76,4 +76,49 @@ public interface WorldGrid {
      * For bounded maps without camera, returns all placed obstacles.
      */
     List<Obstacle> getVisibleObstacles(GameCamera camera);
+
+    /**
+     * Returns obstacles near the given world position within searchRadius.
+     * Implementations should narrow by spatial partition when supported.
+     */
+    default List<Obstacle> getObstaclesNear(float worldX, float worldY, float searchRadius) {
+        return getVisibleObstacles(null);
+    }
+
+    /**
+     * Checks whether a projectile or ranged line-of-sight circle can occupy (worldX, worldY).
+     * Evaluates bounded world edges and solid obstacles while ignoring TileType.WATER.
+     */
+    default boolean isProjectileTraversable(float worldX, float worldY, float radius) {
+        if (radius < 0.0f) {
+            return false;
+        }
+        if (isBounded()) {
+            Rectangle bounds = getWorldBounds();
+            if (bounds != null && (worldX - radius < bounds.x
+                    || worldX + radius > bounds.x + bounds.width
+                    || worldY - radius < bounds.y
+                    || worldY + radius > bounds.y + bounds.height)) {
+                return false;
+            }
+        }
+        List<Obstacle> obstacles = getObstaclesNear(worldX, worldY, radius);
+        if (obstacles == null) {
+            return true;
+        }
+        for (int i = 0; i < obstacles.size(); i++) {
+            Obstacle obs = obstacles.get(i);
+            if (obs == null || !obs.isSolid() || obs.getCollisionRadius() <= 0.0f) {
+                continue;
+            }
+            Vector2D colCenter = obs.getCollisionCenter();
+            float totalRadius = radius + obs.getCollisionRadius();
+            float dx = worldX - colCenter.x;
+            float dy = worldY - colCenter.y;
+            if ((dx * dx + dy * dy) < (totalRadius * totalRadius)) {
+                return false;
+            }
+        }
+        return true;
+    }
 }

@@ -3,6 +3,7 @@ package com.spellstorm.entities;
 import com.spellstorm.math.Vector2D;
 import com.spellstorm.navigation.AStarPathfinder;
 import com.spellstorm.world.TileMap;
+import com.spellstorm.world.WorldGrid;
 
 /**
  * Massive, heavily armored behemoth (Golem).
@@ -50,10 +51,15 @@ public class TankEnemy extends Enemy {
     }
 
     @Override
-    public void updateAI(float dt, Vector2D targetPos, TileMap tileMap, AStarPathfinder pathfinder) {
+    public void updateAIWithGrid(float dt, Vector2D targetPos, WorldGrid worldGrid, AStarPathfinder pathfinder) {
         if (!isAlive()) {
             return;
         }
-        steerWithNavigation(dt, targetPos, tileMap, pathfinder, 1.0f);
+        steerWithWorldGrid(dt, targetPos, worldGrid, pathfinder, 1.0f);
+    }
+
+    @Override
+    public void updateAI(float dt, Vector2D targetPos, TileMap tileMap, AStarPathfinder pathfinder) {
+        updateAIWithGrid(dt, targetPos, resolveWorldGrid(tileMap, pathfinder), pathfinder);
     }
 }

@@ -11,6 +11,8 @@ import com.spellstorm.entities.TankEnemy;
 import com.spellstorm.math.MathUtils;
 import com.spellstorm.math.Vector2D;
 import com.spellstorm.world.TileMap;
+import com.spellstorm.world.TileMapAdapter;
+import com.spellstorm.world.WorldGrid;
 
 import java.util.List;
 import java.util.Random;
@@ -34,6 +36,7 @@ public class EnemySpawner {
     public static final float DEFAULT_SCALING_DURATION = 120.0f; // 2 min (supports 900.0f / 15 min)
 
     private final TileMap tileMap;
+    private final WorldGrid worldGrid;
     private final Random rng;
     private BalanceConfig balanceConfig;
     private GameCamera camera;
@@ -64,6 +67,7 @@ public class EnemySpawner {
 
     public EnemySpawner(TileMap tileMap, Random rng) {
         this.tileMap = tileMap;
+        this.worldGrid = tileMap != null ? new TileMapAdapter(tileMap) : null;
         this.rng = rng != null ? rng : new Random();
         this.bounds = tileMap != null ? tileMap.getWorldBounds() : new Rectangle(0, 0, 4096, 4096);
     }
@@ -74,6 +78,36 @@ public class EnemySpawner {
 
     public EnemySpawner() {
         this(null, new Random());
+    }
+
+    private EnemySpawner(WorldGrid worldGrid, Random rng, BalanceConfig balanceConfig, boolean isGridFactory) {
+        this.worldGrid = worldGrid;
+        this.tileMap = (worldGrid instanceof TileMapAdapter)
+                ? ((TileMapAdapter) worldGrid).getTileMap()
+                : null;
+        this.rng = rng != null ? rng : new Random();
+        if (worldGrid != null) {
+            this.bounds = (worldGrid.isBounded() && worldGrid.getWorldBounds() != null)
+                    ? new Rectangle(worldGrid.getWorldBounds())
+                    : null;
+        } else {
+            this.bounds = new Rectangle(0, 0, 4096, 4096);
+        }
+        if (balanceConfig != null) {
+            setBalanceConfig(balanceConfig);
+        }
+    }
+
+    public static EnemySpawner forWorldGrid(WorldGrid worldGrid, Random rng) {
+        return new EnemySpawner(worldGrid, rng, null, true);
+    }
+
+    public static EnemySpawner forWorldGrid(WorldGrid worldGrid, Random rng, BalanceConfig balanceConfig) {
+        return new EnemySpawner(worldGrid, rng, balanceConfig, true);
+    }
+
+    public WorldGrid getWorldGrid() {
+        return worldGrid;
     }
 
     // =========================================================================
@@ -264,6 +298,17 @@ public class EnemySpawner {
     }
 
     /**
+     * Checks whether a spawn position (x, y) for an entity of radius is legally traversable
+     * (free of water, solid obstacles, and within bounds if bounded).
+     */
+    public boolean isLocationValid(float x, float y, float radius) {
+        if (worldGrid != null) {
+            return worldGrid.isTraversable(x, y, radius);
+        }
+        return bounds != null && bounds.contains(x, y);
+    }
+
+    /**
      * Generates a valid arena position at least minDistance away from playerPos,
      * verifying traversability (free of water and solid obstacles).
      */
@@ -290,18 +335,24 @@ public class EnemySpawner {
             float cx = pPos.x + (float) Math.cos(angle) * dist;
             float cy = pPos.y + (float) Math.sin(angle) * dist;
 
-            if (tileMap != null) {
-                if (tileMap.isTraversable(cx, cy, entityRadius)) {
-                    return new Vector2D(cx, cy);
-                }
-            } else if (bounds != null && bounds.contains(cx, cy)) {
+            if (isLocationValid(cx, cy, entityRadius)) {
                 return new Vector2D(cx, cy);
             }
         }
 
-        // Phase 2: Global bounds random sampling (24 attempts)
-        Rectangle b = (bounds != null) ? bounds : (tileMap != null ? tileMap.getWorldBounds() : new Rectangle(0, 0, 4096, 4096));
-        float margin = Math.max(45.0f, entityRadius + 10.0f);
+        // Phase 2: Bounded arena random sampling, or local unbounded sampling around player
+        boolean boundedWorld = bounds != null || (worldGrid != null && worldGrid.isBounded());
+        Rectangle b;
+        if (boundedWorld) {
+            b = (bounds != null) ? bounds
+                    : (worldGrid.getWorldBounds() != null ? worldGrid.getWorldBounds() : new Rectangle(0, 0, 4096, 4096));
+        } else {
+            float localHalfExtent = Math.max(1200.0f, maxSpawnDist + 250.0f);
+            b = new Rectangle(pPos.x - localHalfExtent, pPos.y - localHalfExtent,
+                    localHalfExtent * 2.0f, localHalfExtent * 2.0f);
+        }
+
+        float margin = boundedWorld ? Math.max(45.0f, entityRadius + 10.0f) : 0.0f;
         float minX = b.x + margin;
         float maxX = b.x + b.width - margin;
         float minY = b.y + margin;
@@ -316,31 +367,44 @@ public class EnemySpawner {
             float dy = y - pPos.y;
 
             if ((dx * dx + dy * dy) >= minSq) {
-                if (tileMap == null || tileMap.isTraversable(x, y, entityRadius)) {
+                if (worldGrid == null || isLocationValid(x, y, entityRadius)) {
                     return new Vector2D(x, y);
                 }
             }
         }
 
         // Phase 3: Deterministic opposite-quadrant fallback
-        Vector2D center = new Vector2D(b.x + b.width * 0.5f, b.y + b.height * 0.5f);
-        Vector2D offset = Vector2D.sub(center, pPos);
-        if (offset.len2() < 1e-4f) {
-            offset = new Vector2D(1.0f, 0.0f);
+        Vector2D fallbackPos;
+        if (boundedWorld) {
+            Vector2D center = new Vector2D(b.x + b.width * 0.5f, b.y + b.height * 0.5f);
+            Vector2D offset = Vector2D.sub(center, pPos);
+            if (offset.len2() < 1e-4f) {
+                offset = new Vector2D(1.0f, 0.0f);
+            }
+            Vector2D dir = offset.nor();
+            fallbackPos = center.cpy().mulAdd(dir, Math.min(b.width, b.height) * 0.35f);
+            fallbackPos.x = MathUtils.clamp(fallbackPos.x, minX, maxX);
+            fallbackPos.y = MathUtils.clamp(fallbackPos.y, minY, maxY);
+        } else {
+            float fallbackAngle = rng.nextFloat() * MathUtils.TWO_PI;
+            fallbackPos = new Vector2D(
+                    pPos.x + (float) Math.cos(fallbackAngle) * minSpawnDist,
+                    pPos.y + (float) Math.sin(fallbackAngle) * minSpawnDist);
         }
-        Vector2D dir = offset.nor();
-        Vector2D fallbackPos = center.cpy().mulAdd(dir, Math.min(b.width, b.height) * 0.35f);
-        fallbackPos.x = MathUtils.clamp(fallbackPos.x, minX, maxX);
-        fallbackPos.y = MathUtils.clamp(fallbackPos.y, minY, maxY);
 
-        if (tileMap != null && !tileMap.isTraversable(fallbackPos.x, fallbackPos.y, entityRadius)) {
+        if (worldGrid != null && !worldGrid.isTraversable(fallbackPos.x, fallbackPos.y, entityRadius)) {
             // Search radially outward (8-spoke radial spiral)
-            for (float r = 32.0f; r <= 320.0f; r += 32.0f) {
+            float maxSearchRadius = boundedWorld ? 320.0f : 640.0f;
+            for (float r = 32.0f; r <= maxSearchRadius; r += 32.0f) {
                 for (int a = 0; a < 8; a++) {
                     float ang = a * (MathUtils.TWO_PI / 8.0f);
-                    float px = MathUtils.clamp(fallbackPos.x + (float) Math.cos(ang) * r, minX, maxX);
-                    float py = MathUtils.clamp(fallbackPos.y + (float) Math.sin(ang) * r, minY, maxY);
-                    if (tileMap.isTraversable(px, py, entityRadius)) {
+                    float px = fallbackPos.x + (float) Math.cos(ang) * r;
+                    float py = fallbackPos.y + (float) Math.sin(ang) * r;
+                    if (boundedWorld) {
+                        px = MathUtils.clamp(px, minX, maxX);
+                        py = MathUtils.clamp(py, minY, maxY);
+                    }
+                    if (worldGrid.isTraversable(px, py, entityRadius)) {
                         return new Vector2D(px, py);
                     }
                 }

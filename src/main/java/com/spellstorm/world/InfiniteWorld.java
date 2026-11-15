@@ -134,6 +134,58 @@ public class InfiniteWorld implements WorldGrid, FloatingOriginAware {
         }
 
         // 2. Circle-circle test against obstacles across touched chunks
+        return !collidesWithChunkObstacles(worldX, worldY, radius, originX, originY);
+    }
+
+    @Override
+    public boolean isProjectileTraversable(float worldX, float worldY, float radius) {
+        if (radius < 0.0f) {
+            return false;
+        }
+        return !collidesWithChunkObstacles(worldX, worldY, radius,
+                chunkManager.getOriginShiftX(), chunkManager.getOriginShiftY());
+    }
+
+    @Override
+    public List<Obstacle> getObstaclesNear(float worldX, float worldY, float searchRadius) {
+        float r = Math.max(0.0f, searchRadius);
+        long originX = chunkManager.getOriginShiftX();
+        long originY = chunkManager.getOriginShiftY();
+
+        long obsGMinX = (long) Math.floor(worldX - r - MAX_OBSTACLE_RADIUS) + originX;
+        long obsGMaxX = (long) Math.floor(worldX + r + MAX_OBSTACLE_RADIUS) + originX;
+        long obsGMinY = (long) Math.floor(worldY - r - MAX_OBSTACLE_RADIUS) + originY;
+        long obsGMaxY = (long) Math.floor(worldY + r + MAX_OBSTACLE_RADIUS) + originY;
+
+        int minCx = (int) Math.floorDiv(obsGMinX, (long) Chunk.CHUNK_SIZE_PX);
+        int maxCx = (int) Math.floorDiv(obsGMaxX, (long) Chunk.CHUNK_SIZE_PX);
+        int minCy = (int) Math.floorDiv(obsGMinY, (long) Chunk.CHUNK_SIZE_PX);
+        int maxCy = (int) Math.floorDiv(obsGMaxY, (long) Chunk.CHUNK_SIZE_PX);
+
+        List<Obstacle> result = new ArrayList<>();
+        for (int cy = minCy; cy <= maxCy; cy++) {
+            for (int cx = minCx; cx <= maxCx; cx++) {
+                Chunk chunk = chunkManager.getChunk(cx, cy);
+                List<Obstacle> worldObstacles = chunk.getWorldObstacles(originX, originY);
+                for (int i = 0; i < worldObstacles.size(); i++) {
+                    Obstacle obs = worldObstacles.get(i);
+                    if (obs == null) {
+                        continue;
+                    }
+                    Vector2D center = obs.getCollisionCenter();
+                    float limit = r + Math.max(0.0f, obs.getCollisionRadius());
+                    float dx = worldX - center.x;
+                    float dy = worldY - center.y;
+                    if ((dx * dx + dy * dy) <= (limit * limit)) {
+                        result.add(obs);
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+    private boolean collidesWithChunkObstacles(float worldX, float worldY, float radius, long originX, long originY) {
         // Expanded by MAX_OBSTACLE_RADIUS to evaluate obstacles crossing chunk seams
         long obsGMinX = (long) Math.floor(worldX - radius - MAX_OBSTACLE_RADIUS) + originX;
         long obsGMaxX = (long) Math.floor(worldX + radius + MAX_OBSTACLE_RADIUS) + originX;
@@ -155,12 +207,11 @@ public class InfiniteWorld implements WorldGrid, FloatingOriginAware {
 
                 Chunk chunk = chunkManager.getChunk(cx, cy);
                 if (chunk.collidesWithLocalObstacle(localX, localY, radius)) {
-                    return false;
+                    return true;
                 }
             }
         }
-
-        return true;
+        return false;
     }
 
     @Override
@@ -195,12 +246,12 @@ public class InfiniteWorld implements WorldGrid, FloatingOriginAware {
 
     @Override
     public float tileToWorldX(int tx) {
-        return (float) (((long) tx * TileMap.TILE_SIZE) - chunkManager.getOriginShiftX());
+        return (float) (((long) tx * (long) TileMap.TILE_SIZE + ((long) TileMap.TILE_SIZE / 2L)) - chunkManager.getOriginShiftX());
     }
 
     @Override
     public float tileToWorldY(int ty) {
-        return (float) (((long) ty * TileMap.TILE_SIZE) - chunkManager.getOriginShiftY());
+        return (float) (((long) ty * (long) TileMap.TILE_SIZE + ((long) TileMap.TILE_SIZE / 2L)) - chunkManager.getOriginShiftY());
     }
 
     @Override

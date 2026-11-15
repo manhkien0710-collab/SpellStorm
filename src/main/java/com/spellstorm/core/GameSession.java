@@ -149,16 +149,14 @@ public class GameSession implements FloatingOriginAware {
         }
 
         if (usePhase2Systems) {
-            this.spawner = new EnemySpawner(this.tileMap, rng, BalanceConfig.defaults());
+            this.spawner = EnemySpawner.forWorldGrid(this.worldGrid, rng, BalanceConfig.defaults());
             this.separationSystem = new EnemySeparationSystem();
         } else {
-            this.spawner = new EnemySpawner(this.tileMap, rng);
+            this.spawner = EnemySpawner.forWorldGrid(this.worldGrid, rng);
             this.separationSystem = null;
         }
         this.spawner.setCamera(camera);
-        this.pathfinder = (this.tileMap != null)
-                ? new com.spellstorm.navigation.AStarPathfinder(this.tileMap)
-                : null;
+        this.pathfinder = com.spellstorm.navigation.AStarPathfinder.forWorldGrid(this.worldGrid);
 
         // Register FloatingOriginAware listeners
         if (this.originManager != null) {
@@ -580,7 +578,7 @@ public class GameSession implements FloatingOriginAware {
             if (!enemy.isAlive()) {
                 continue;
             }
-            enemy.updateAI(dt, player.getPosition(), tileMap, pathfinder);
+            enemy.updateAIWithGrid(dt, player.getPosition(), worldGrid, pathfinder);
             enemy.update(dt);
             if (arenaBounds != null) {
                 constrainEntityToBounds(enemy);
@@ -589,7 +587,7 @@ public class GameSession implements FloatingOriginAware {
 
         // Crowd separation pass (Phase 2)
         if (separationSystem != null) {
-            separationSystem.separate(enemies, tileMap, arenaBounds, dt);
+            separationSystem.separateWithGrid(enemies, worldGrid, arenaBounds, dt);
         }
 
         // Contact damage, ranged attacks, and boss volleys
@@ -684,7 +682,7 @@ public class GameSession implements FloatingOriginAware {
         for (int i = 0; i < enemies.size(); i++) {
             Enemy enemy = enemies.get(i);
             if (enemy != null && enemy.isAlive()) {
-                enemy.onOriginShift(deltaX, deltaY);
+                enemy.applyOriginDelta((float) deltaX, (float) deltaY);
             }
         }
     }
@@ -768,6 +766,10 @@ public class GameSession implements FloatingOriginAware {
         return separationSystem;
     }
 
+    public com.spellstorm.navigation.AStarPathfinder getPathfinder() {
+        return pathfinder;
+    }
+
     public Player getPlayer() { return player; }
     public Player player() { return player; }
 
@@ -787,6 +789,7 @@ public class GameSession implements FloatingOriginAware {
 
     public void addEnemy(Enemy enemy) {
         if (enemy != null) {
+            enemy.setActiveWorldGrid(worldGrid);
             enemies.add(enemy);
         }
     }

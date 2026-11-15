@@ -386,8 +386,10 @@ public class SpellStormGame extends Game {
         targetSession.getCamera().setCenter(playerPos.x, playerPos.y);
 
         BalanceConfig balance = BalanceConfig.defaults();
-        MeleeEnemy fiend = new MeleeEnemy(playerPos.cpy().add(180.0f, -40.0f));
-        RangedEnemy cultist = new RangedEnemy(playerPos.cpy().add(-210.0f, 60.0f));
+        Vector2D fiendPos = findNearestTraversableSpawn(worldGrid, playerPos.cpy().add(180.0f, -40.0f), MeleeEnemy.DEFAULT_RADIUS);
+        Vector2D cultistPos = findNearestTraversableSpawn(worldGrid, playerPos.cpy().add(-210.0f, 60.0f), RangedEnemy.DEFAULT_RADIUS);
+        MeleeEnemy fiend = new MeleeEnemy(fiendPos);
+        RangedEnemy cultist = new RangedEnemy(cultistPos);
         balance.applyToEnemy(fiend);
         balance.applyToEnemy(cultist);
         targetSession.addEnemy(fiend);
@@ -426,13 +428,16 @@ public class SpellStormGame extends Game {
             }
         }
 
+        WorldGrid worldGrid = targetSession.getWorldGrid();
         Vector2D playerPos = new Vector2D(targetX, targetY);
         targetSession.getPlayer().setPosition(playerPos);
         targetSession.getCamera().setCenter(playerPos.x, playerPos.y);
 
         BalanceConfig balance = BalanceConfig.defaults();
-        MeleeEnemy fiend = new MeleeEnemy(playerPos.cpy().add(170.0f, 80.0f));
-        TankEnemy golem = new TankEnemy(playerPos.cpy().add(-200.0f, -60.0f));
+        Vector2D fiendPos = findNearestTraversableSpawn(worldGrid, playerPos.cpy().add(170.0f, 80.0f), MeleeEnemy.DEFAULT_RADIUS);
+        Vector2D golemPos = findNearestTraversableSpawn(worldGrid, playerPos.cpy().add(-200.0f, -60.0f), TankEnemy.DEFAULT_RADIUS);
+        MeleeEnemy fiend = new MeleeEnemy(fiendPos);
+        TankEnemy golem = new TankEnemy(golemPos);
         balance.applyToEnemy(fiend);
         balance.applyToEnemy(golem);
         targetSession.addEnemy(fiend);
@@ -444,6 +449,7 @@ public class SpellStormGame extends Game {
     }
 
     private static void setupExplorationRadarScenario(GameSession targetSession) {
+        WorldGrid worldGrid = targetSession.getWorldGrid();
         Vector2D playerPos = targetSession.getPlayer().getPosition();
         targetSession.getCamera().setCenter(playerPos.x, playerPos.y);
 
@@ -451,17 +457,67 @@ public class SpellStormGame extends Game {
         for (int i = 0; i < 8; i++) {
             float ang = (float) (i * 2.0 * Math.PI / 8.0);
             float dist = 320.0f + (i % 3) * 120.0f;
-            Vector2D pos = playerPos.cpy().add((float) Math.cos(ang) * dist, (float) Math.sin(ang) * dist);
+            Vector2D rawPos = playerPos.cpy().add((float) Math.cos(ang) * dist, (float) Math.sin(ang) * dist);
+            float radius = (i % 2 == 0) ? MeleeEnemy.DEFAULT_RADIUS : RangedEnemy.DEFAULT_RADIUS;
+            Vector2D pos = findNearestTraversableSpawn(worldGrid, rawPos, radius);
             Enemy e = (i % 2 == 0) ? new MeleeEnemy(pos) : new RangedEnemy(pos);
             balance.applyToEnemy(e);
             targetSession.addEnemy(e);
         }
-        BossEnemy boss = new BossEnemy(playerPos.cpy().add(600.0f, 350.0f));
+        Vector2D bossPos = findNearestTraversableSpawn(worldGrid, playerPos.cpy().add(600.0f, 350.0f), BossEnemy.BOSS_RADIUS);
+        BossEnemy boss = new BossEnemy(bossPos);
         balance.applyToEnemy(boss);
         targetSession.addEnemy(boss);
 
         targetSession.getPowerUpManager().spawnPickup(playerPos.cpy().add(-280.0f, 220.0f), PowerUpType.PIERCING_SURGE);
         targetSession.getPowerUpManager().spawnPickup(playerPos.cpy().add(350.0f, -260.0f), PowerUpType.ARCANE_OVERDRIVE);
+    }
+
+    private static Vector2D findNearestTraversableSpawn(WorldGrid worldGrid, Vector2D desiredPos, float radius) {
+        if (desiredPos == null) {
+            return new Vector2D();
+        }
+        if (worldGrid == null || worldGrid.isTraversable(desiredPos.x, desiredPos.y, radius)) {
+            return desiredPos.cpy();
+        }
+
+        int baseTx = worldGrid.worldToTileX(desiredPos.x);
+        int baseTy = worldGrid.worldToTileY(desiredPos.y);
+        Vector2D bestLand = null;
+        float bestLandDistSq = Float.MAX_VALUE;
+
+        for (int ring = 1; ring <= 24; ring++) {
+            for (int dy = -ring; dy <= ring; dy++) {
+                for (int dx = -ring; dx <= ring; dx++) {
+                    if (Math.abs(dx) != ring && Math.abs(dy) != ring) {
+                        continue;
+                    }
+                    int tx = baseTx + dx;
+                    int ty = baseTy + dy;
+                    TileType tile = worldGrid.getTile(tx, ty);
+                    if (tile == null || !tile.isWalkable() || tile.isWater()) {
+                        continue;
+                    }
+                    float wx = worldGrid.tileToWorldX(tx);
+                    float wy = worldGrid.tileToWorldY(ty);
+                    if (!worldGrid.isTraversable(wx, wy, radius)) {
+                        continue;
+                    }
+                    float ddx = wx - desiredPos.x;
+                    float ddy = wy - desiredPos.y;
+                    float dSq = ddx * ddx + ddy * ddy;
+                    if (dSq < bestLandDistSq) {
+                        bestLandDistSq = dSq;
+                        bestLand = new Vector2D(wx, wy);
+                    }
+                }
+            }
+            if (bestLand != null) {
+                return bestLand;
+            }
+        }
+
+        return desiredPos.cpy();
     }
 
     private static void movePlayerToTile(GameSession targetSession, TileType primary, TileType fallback) {

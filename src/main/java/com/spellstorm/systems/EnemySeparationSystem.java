@@ -5,6 +5,8 @@ import com.spellstorm.entities.Enemy;
 import com.spellstorm.math.MathUtils;
 import com.spellstorm.math.Vector2D;
 import com.spellstorm.world.TileMap;
+import com.spellstorm.world.TileMapAdapter;
+import com.spellstorm.world.WorldGrid;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -12,13 +14,16 @@ import java.util.List;
 /**
  * Separates overlapping living enemies so crowds fan out naturally instead of collapsing
  * onto a single point. Resolves exact coincident positions deterministically and respects
- * both arena {@code worldBounds} and {@link TileMap#isTraversable(float, float, float)}.
+ * both arena {@code worldBounds} and {@link WorldGrid#isTraversable(float, float, float)}.
  */
 public class EnemySeparationSystem {
 
     private static final int RELAXATION_PASSES = 2;
     private static final float COINCIDENT_EPSILON_SQ = 1e-6f;
     private static final int TIE_BREAK_DIRECTIONS = 16;
+
+    private TileMap cachedTileMap = null;
+    private WorldGrid cachedAdapter = null;
 
     public EnemySeparationSystem() {
     }
@@ -36,6 +41,22 @@ public class EnemySeparationSystem {
      * and keeping positions traversable on {@code tileMap}.
      */
     public void separate(List<Enemy> enemies, TileMap tileMap, Rectangle worldBounds, float dt) {
+        separateWithGrid(enemies, resolveWorldGrid(tileMap), worldBounds, dt);
+    }
+
+    /**
+     * Separates overlapping living enemies using the given WorldGrid's bounds (if bounded).
+     */
+    public void separateWithGrid(List<Enemy> enemies, WorldGrid worldGrid, float dt) {
+        Rectangle bounds = (worldGrid != null && worldGrid.isBounded()) ? worldGrid.getWorldBounds() : null;
+        separateWithGrid(enemies, worldGrid, bounds, dt);
+    }
+
+    /**
+     * Separates overlapping living enemies while constraining positions inside {@code worldBounds}
+     * and resolving displacements against water and solid obstacles on {@code worldGrid}.
+     */
+    public void separateWithGrid(List<Enemy> enemies, WorldGrid worldGrid, Rectangle worldBounds, float dt) {
         if (enemies == null || enemies.size() < 2 || dt <= 0.0f) {
             return;
         }
@@ -119,13 +140,24 @@ public class EnemySeparationSystem {
                 if (dispX[i] == 0.0f && dispY[i] == 0.0f) {
                     continue;
                 }
-                applyValidatedDisplacement(living.get(i), dispX[i], dispY[i], tileMap, worldBounds);
+                applyValidatedDisplacement(living.get(i), dispX[i], dispY[i], worldGrid, worldBounds);
             }
         }
     }
 
+    private WorldGrid resolveWorldGrid(TileMap tileMap) {
+        if (tileMap == null) {
+            return null;
+        }
+        if (cachedTileMap != tileMap) {
+            cachedTileMap = tileMap;
+            cachedAdapter = new TileMapAdapter(tileMap);
+        }
+        return cachedAdapter;
+    }
+
     private void applyValidatedDisplacement(Enemy enemy, float dx, float dy,
-                                            TileMap tileMap, Rectangle worldBounds) {
+                                            WorldGrid worldGrid, Rectangle worldBounds) {
         Vector2D pos = enemy.getPosition();
         float oldX = pos.x;
         float oldY = pos.y;
@@ -138,12 +170,12 @@ public class EnemySeparationSystem {
             candY = clampToBoundsY(candY, r, worldBounds);
         }
 
-        if (tileMap == null) {
+        if (worldGrid == null) {
             enemy.setPosition(candX, candY);
             return;
         }
 
-        Vector2D resolved = tileMap.resolveCollision(oldX, oldY, candX, candY, r);
+        Vector2D resolved = worldGrid.resolveCollision(oldX, oldY, candX, candY, r);
         float rx = resolved.x;
         float ry = resolved.y;
 
@@ -152,13 +184,13 @@ public class EnemySeparationSystem {
             ry = clampToBoundsY(ry, r, worldBounds);
         }
 
-        if (tileMap.isTraversable(rx, ry, r)) {
+        if (worldGrid.isTraversable(rx, ry, r)) {
             enemy.setPosition(rx, ry);
-        } else if (tileMap.isTraversable(oldX, oldY, r)) {
+        } else if (worldGrid.isTraversable(oldX, oldY, r)) {
             if (worldBounds != null) {
                 float ox = clampToBoundsX(oldX, r, worldBounds);
                 float oy = clampToBoundsY(oldY, r, worldBounds);
-                if (tileMap.isTraversable(ox, oy, r)) {
+                if (worldGrid.isTraversable(ox, oy, r)) {
                     enemy.setPosition(ox, oy);
                 }
             }

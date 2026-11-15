@@ -121,4 +121,57 @@ public class TileMapAdapter implements WorldGrid {
         }
         return Collections.unmodifiableList(visible);
     }
+
+    @Override
+    public List<Obstacle> getObstaclesNear(float worldX, float worldY, float searchRadius) {
+        List<Obstacle> all = tileMap.getObstacles();
+        if (all == null || all.isEmpty()) {
+            return Collections.emptyList();
+        }
+        float effectiveRadius = Math.max(0.0f, searchRadius);
+        List<Obstacle> nearby = new ArrayList<>();
+        for (int i = 0; i < all.size(); i++) {
+            Obstacle obs = all.get(i);
+            if (obs == null) {
+                continue;
+            }
+            Vector2D center = obs.getCollisionCenter();
+            float limit = effectiveRadius + Math.max(0.0f, obs.getCollisionRadius());
+            float dx = worldX - center.x;
+            float dy = worldY - center.y;
+            if ((dx * dx + dy * dy) <= (limit * limit)) {
+                nearby.add(obs);
+            }
+        }
+        return nearby;
+    }
+
+    @Override
+    public boolean isProjectileTraversable(float worldX, float worldY, float radius) {
+        if (radius < 0.0f) {
+            return false;
+        }
+        Rectangle bounds = tileMap.getWorldBounds();
+        if (worldX - radius < bounds.x
+                || worldX + radius > bounds.x + bounds.width
+                || worldY - radius < bounds.y
+                || worldY + radius > bounds.y + bounds.height) {
+            return false;
+        }
+        List<Obstacle> all = tileMap.getObstacles();
+        for (int i = 0; i < all.size(); i++) {
+            Obstacle obs = all.get(i);
+            if (obs == null || !obs.isSolid() || obs.getCollisionRadius() <= 0.0f) {
+                continue;
+            }
+            Vector2D colCenter = obs.getCollisionCenter();
+            float totalRadius = radius + obs.getCollisionRadius();
+            float dx = worldX - colCenter.x;
+            float dy = worldY - colCenter.y;
+            if ((dx * dx + dy * dy) < (totalRadius * totalRadius)) {
+                return false;
+            }
+        }
+        return true;
+    }
 }

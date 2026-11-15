@@ -3,6 +3,7 @@ package com.spellstorm.entities;
 import com.spellstorm.math.Vector2D;
 import com.spellstorm.navigation.AStarPathfinder;
 import com.spellstorm.world.TileMap;
+import com.spellstorm.world.WorldGrid;
 
 /**
  * Cunning sorcerer enemy that kites the player (Cultist).
@@ -182,11 +183,12 @@ public class RangedEnemy extends Enemy {
     }
 
     @Override
-    public void updateAI(float dt, Vector2D targetPos, TileMap tileMap, AStarPathfinder pathfinder) {
+    public void updateAIWithGrid(float dt, Vector2D targetPos, WorldGrid worldGrid, AStarPathfinder pathfinder) {
         if (!isAlive() || targetPos == null) {
             return;
         }
 
+        setActiveWorldGrid(worldGrid);
         targetPosCopy.set(targetPos);
 
         Vector2D diff = Vector2D.sub(targetPos, getPosition());
@@ -199,22 +201,19 @@ public class RangedEnemy extends Enemy {
 
         Vector2D dir = diff.cpy().scl(1.0f / dist);
 
-        // Line of sight verification across obstacles and rivers
-        boolean hasLos = true;
-        if (pathfinder != null) {
-            hasLos = pathfinder.hasLineOfSight(getPosition(), targetPos, getRadius());
-        }
+        // Ranged line of sight: projectiles cross river water cleanly, blocked only by solid obstacles/bounds
+        boolean hasRangedLOS = hasProjectileLineOfSight(worldGrid, pathfinder, getPosition(), targetPos, 7.0f);
+        this.inAttackRange = (dist <= shootRange) && hasRangedLOS;
 
-        this.inAttackRange = (dist <= preferredDistance + 70.0f || dist <= shootRange) && hasLos;
-
-        if (!hasLos || dist > preferredDistance + distanceTolerance) {
-            // Obstructed or too far away: steer via navigation towards player
-            steerWithNavigation(dt, targetPos, tileMap, pathfinder, 1.0f);
+        if (!hasRangedLOS || dist > preferredDistance + distanceTolerance) {
+            // Obstructed by solid obstacle or too far away: steer via navigation towards player
+            steerWithWorldGrid(dt, targetPos, worldGrid, pathfinder, 1.0f);
         } else if (dist < preferredDistance - distanceTolerance) {
-            // Too close with clear LOS: retreat / kite away from player
-            moveInDirection(dir.cpy().scl(-1.0f), 1.0f, dt);
+            // Too close with clear ranged LOS: retreat / kite away, sliding along shoreline if backed into water
+            Vector2D retreatDir = dir.cpy().scl(-1.0f);
+            moveWithShorelineFallback(retreatDir, worldGrid, dt);
         } else {
-            // In preferred range sweet spot with LOS: strafe laterally around player
+            // In preferred range sweet spot with LOS: strafe laterally around player (collision-resolved via activeWorldGrid)
             Vector2D strafeDir = new Vector2D(-dir.y, dir.x);
             float strafeFactor = (float) Math.sin(animTimer * 1.5f) > 0.0f ? 0.45f : -0.45f;
             moveInDirection(strafeDir, strafeFactor, dt);
@@ -223,8 +222,75 @@ public class RangedEnemy extends Enemy {
     }
 
     @Override
+    public void updateAI(float dt, Vector2D targetPos, TileMap tileMap, AStarPathfinder pathfinder) {
+        updateAIWithGrid(dt, targetPos, resolveWorldGrid(tileMap, pathfinder), pathfinder);
+    }
+
+    private boolean hasProjectileLineOfSight(WorldGrid worldGrid, AStarPathfinder pathfinder,
+                                             Vector2D startPos, Vector2D endPos, float projectileRadius) {
+        if (pathfinder != null) {
+            return pathfinder.hasRangedLineOfSight(startPos, endPos, projectileRadius);
+        }
+        if (worldGrid == null) {
+            return true;
+        }
+        float diffX = endPos.x - startPos.x;
+        float diffY = endPos.y - startPos.y;
+        float dist = (float) Math.hypot(diffX, diffY);
+        if (dist < 1e-3f) {
+            return worldGrid.isProjectileTraversable(startPos.x, startPos.y, projectileRadius);
+        }
+        float stepSize = TileMap.TILE_SIZE * 0.5f;
+        int steps = (int) Math.ceil(dist / stepSize);
+        float stepX = diffX / steps;
+        float stepY = diffY / steps;
+        float curX = startPos.x;
+        float curY = startPos.y;
+        for (int i = 0; i <= steps; i++) {
+            if (!worldGrid.isProjectileTraversable(curX, curY, projectileRadius)) {
+                return false;
+            }
+            curX += stepX;
+            curY += stepY;
+        }
+        return worldGrid.isProjectileTraversable(endPos.x, endPos.y, projectileRadius);
+    }
+
+    private void moveWithShorelineFallback(Vector2D desiredDir, WorldGrid worldGrid, float dt) {
+        if (worldGrid == null || dt <= 0.0f) {
+            moveInDirection(desiredDir, 1.0f, dt);
+            return;
+        }
+        float probeDist = Math.max(8.0f, getCurrentMoveSpeed() * dt);
+        Vector2D pos = getPosition();
+        Vector2D resolved = worldGrid.resolveCollision(
+                pos.x, pos.y,
+                pos.x + desiredDir.x * probeDist,
+                pos.y + desiredDir.y * probeDist,
+                getRadius());
+        float dispSq = resolved.dist2(pos);
+        float minDirectProgress = probeDist * 0.25f;
+        if (dispSq >= (minDirectProgress * minDirectProgress)) {
+            moveInDirection(desiredDir, 1.0f, dt);
+            return;
+        }
+
+        Vector2D slideDir = computeShorelineSlideDirection(worldGrid, desiredDir, getRadius());
+        if (slideDir != null) {
+            moveInDirection(slideDir, 1.0f, dt);
+        } else {
+            velocity.setZero();
+        }
+    }
+
+    @Override
     public void rebase(float deltaX, float deltaY) {
-        super.rebase(deltaX, deltaY);
+        applyOriginDelta(deltaX, deltaY);
+    }
+
+    @Override
+    public void applyOriginDelta(float deltaX, float deltaY) {
+        super.applyOriginDelta(deltaX, deltaY);
         targetPosCopy.sub(deltaX, deltaY);
     }
 
